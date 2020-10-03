@@ -12,10 +12,11 @@ from network.critic import Critic
 class DDPG(object):
     def __init__(self, state_size, action_size, actor_lr = 1e-5,
                 critic_lr = 1e-3, batch_size = 64, gamma = 0.99,
-                buf_size = 1e4, tau = 1e-3):
+                buf_size = 1e4, tau = 1e-3, fcl1_size = 400, fcl2_size = 300):
 
         self.batch_size = batch_size
         self.memory = ReplayBuffer(buf_size, [state_size], action_size)
+        self.noise = OUActionNoise(mu=np.zeros(action_size))
         self.gamma = gamma
 
         #generate tensorflow session
@@ -25,22 +26,27 @@ class DDPG(object):
 
         self.actor = Actor(tensorflow_session = session, state_size = state_size,
                             action_size = action_size, lr = actor_lr,
-                            batch_size = batch_size, tau = tau)
+                            batch_size = batch_size, tau = tau,
+                            fcl1_size = fcl1_size, fcl2_size = fcl2_size)
         self.critic = Critic(tensorflow_session = session, state_size = state_size,
                             action_size = action_size, lr = critic_lr,
-                            batch_size = batch_size, tau = tau)
+                            batch_size = batch_size, tau = tau,
+                            fcl1_size = fcl1_size, fcl2_size = fcl2_size)
 
     def get_action(self, state):
         """
-        Return the best action in the passed state,
-        according to the model in training
+        Return the best action in the passed state, according to the model
+        in training. Noise added for exploration
         """
-        return self.actor.model.predict(state)
+        noise = self.noise()
+        action = self.actor.model.predict(state)
+        action_p = action + noise
+        return action_p
 
     def train(self):
         """
-        Wait to fill the buffer up to the batch size, then train the
-        network from the replay buffer.
+        Fill the buffer up to the batch size, then train the network from
+        the replay buffer.
         """
         if self.memory.isReady(self.batch_size):
             self.train_helper()
@@ -88,7 +94,7 @@ class DDPG(object):
 
         for (reward, q_value_n, this_done) in zip(rewards, q_values_n, terminal):
             q_target = reward
-            if(!this_done):
+            if(not this_done):
                 q_target += self.gamma * q_value_n
             q_targets.append(q_target)
 
