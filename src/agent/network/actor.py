@@ -76,7 +76,7 @@ class Actor(object):
         Update the weights with the new gradients
         """
         self.session.run(self.optimizer, feed_dict={
-        self.states: states,
+        self.model_input: states,
         self.action_gradients: action_gradients
         })
 

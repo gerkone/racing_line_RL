@@ -81,6 +81,7 @@ class Critic(object):
         # self.state_input = states,
         # self.action_input = actions,
         # self.q_target = q_target
+        q_target = q_target.reshape(1, 1)
         self.session.run(self.optimizer, feed_dict={
             self.state_input: states,
             self.action_input: actions,
@@ -103,7 +104,7 @@ class Critic(object):
         """
         Return the model action gradients
         """
-        return self.session.run(self.action_gradients, feed_dict={
-            self.state_inputs: states,
+        return np.array(self.session.run(self.action_gradients, feed_dict={
+            self.state_input: states,
             self.action_input: actions
-        })
+        }))

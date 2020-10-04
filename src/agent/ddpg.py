@@ -14,6 +14,8 @@ class Agent(object):
                 critic_lr = 1e-3, batch_size = 64, gamma = 0.99,
                 buf_size = 10000, tau = 1e-3, fcl1_size = 300, fcl2_size = 600):
         tf.disable_v2_behavior()
+        self.n_actions = action_dims[0]
+        self.n_states = state_dims[0]
         self.batch_size = batch_size
         self._memory = ReplayBuffer(buf_size, state_dims, action_dims)
         self._noise = OUActionNoise(mu=np.zeros(action_dims))
@@ -37,7 +39,7 @@ class Agent(object):
         in training. Noise added for exploration
         """
         noise = self._noise()
-        state = state.reshape(state.size,1).T
+        state = state.reshape(self.n_states,1).T
         action = self.actor.model.predict(state)[0]
         action_p = action + noise
         return action_p
@@ -79,7 +81,7 @@ class Agent(object):
         Use calculated policy gradients to train the actor network
         """
         gradients = self.get_action_gradients(states)
-        self.critic.train(states, gradients)
+        self.actor.train(states, gradients)
 
     def get_q_targets(self, states_n, terminal, rewards):
         """
@@ -88,7 +90,6 @@ class Agent(object):
         with r current reward, gamma discount factor and q_n future q values.
         """
         actions_n = self.actor.model.predict(states_n)
-        print(states_n.shape, actions_n.shape)
         q_values_n = self.critic.target_model.predict([states_n, actions_n])
         q_targets = []
 
@@ -105,7 +106,7 @@ class Agent(object):
         Calculate the predicted deterministic policy gradients.
         """
         actions = self.actor.model.predict(states)
-        self.critic.get_gradients(states, actions)
+        return self.critic.get_gradients(states, actions).reshape(self.batch_size, self.n_actions)
 
     def remember(self, state, state_new, action, reward, terminal):
         """
