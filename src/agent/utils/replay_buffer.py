@@ -1,27 +1,27 @@
 import numpy as np
 
 class ReplayBuffer(object):
-    def __init__(self, buf_size, input_shape, n_outputs):
+    def __init__(self, buf_size, input_shape, output_shape):
         self.buf_size = buf_size
         self._buf_ctr = 0
 
         self.state_buf = np.zeros((self.buf_size, *input_shape))
         self.trans_buf = np.zeros((self.buf_size, *input_shape))
-        self.action_buf = np.zeros((self.buf_size, n_outputs))
-        self.reward_buf = np.zeroes(self.buf_size)
+        self.action_buf = np.zeros((self.buf_size, *output_shape))
+        self.reward_buf = np.zeros(self.buf_size)
         self.terminal_buf = np.zeros(self.buf_size, dtype=np.float32)
 
     def remember(self, state, state_new, action, reward, terminal):
-        i = self._buf_ctr % buf_size
+        i = self._buf_ctr % self.buf_size
         self.state_buf[i] = state
         self.trans_buf[i] = state_new
         self.action_buf[i] = action
         self.reward_buf[i] = reward
         self.terminal_buf[i] = terminal
-        self._buf_ctr++;
+        self._buf_ctr+=1;
 
     def sample(self, batch_size):
-        i_max = min(self._buf_size, self.buf_ctr)
+        i_max = min(self.buf_size, self._buf_ctr)
         batch = np.random.choice(i_max, batch_size)
 
         states = self.state_buf[batch]

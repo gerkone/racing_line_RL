@@ -1,5 +1,5 @@
 import numpy as np
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
 
 from utils.replay_buffer import ReplayBuffer
 from utils.action_noise import OUActionNoise
@@ -9,27 +9,25 @@ from network.critic import Critic
 """
 
 """
-class DDPG(object):
-    def __init__(self, state_size, action_size, actor_lr = 1e-5,
+class Agent(object):
+    def __init__(self, state_dims, action_dims, actor_lr = 1e-5,
                 critic_lr = 1e-3, batch_size = 64, gamma = 0.99,
-                buf_size = 1e4, tau = 1e-3, fcl1_size = 400, fcl2_size = 300):
-
+                buf_size = 10000, tau = 1e-3, fcl1_size = 300, fcl2_size = 600):
+        tf.disable_v2_behavior()
         self.batch_size = batch_size
-        self.memory = ReplayBuffer(buf_size, [state_size], action_size)
-        self.noise = OUActionNoise(mu=np.zeros(action_size))
+        self._memory = ReplayBuffer(buf_size, state_dims, action_dims)
+        self._noise = OUActionNoise(mu=np.zeros(action_dims))
         self.gamma = gamma
 
         #generate tensorflow session
-        config = tf.ConfigProto()
-        config.gpu_options.allow_growth = True
-        session = tf.Session(config=config)
+        session = tf.Session()
 
-        self.actor = Actor(tensorflow_session = session, state_size = state_size,
-                            action_size = action_size, lr = actor_lr,
+        self.actor = Actor(tensorflow_session = session, state_dims = state_dims,
+                            action_dims = action_dims, lr = actor_lr,
                             batch_size = batch_size, tau = tau,
                             fcl1_size = fcl1_size, fcl2_size = fcl2_size)
-        self.critic = Critic(tensorflow_session = session, state_size = state_size,
-                            action_size = action_size, lr = critic_lr,
+        self.critic = Critic(tensorflow_session = session, state_dims = state_dims,
+                            action_dims = action_dims, lr = critic_lr,
                             batch_size = batch_size, tau = tau,
                             fcl1_size = fcl1_size, fcl2_size = fcl2_size)
 
@@ -38,17 +36,18 @@ class DDPG(object):
         Return the best action in the passed state, according to the model
         in training. Noise added for exploration
         """
-        noise = self.noise()
-        action = self.actor.model.predict(state)
+        noise = self._noise()
+        state = state.reshape(state.size,1).T
+        action = self.actor.model.predict(state)[0]
         action_p = action + noise
         return action_p
 
-    def train(self):
+    def learn(self):
         """
-        Fill the buffer up to the batch size, then train the network from
-        the replay buffer.
+        Fill the buffer up to the batch size, then train both networks with
+        experience from the replay buffer.
         """
-        if self.memory.isReady(self.batch_size):
+        if self._memory.isReady(self.batch_size):
             self.train_helper()
 
     """
@@ -61,7 +60,7 @@ class DDPG(object):
     """
 
     def train_helper(self):
-        states, actions, rewards, terminal, states_n = self.memory.sample()
+        states, actions, rewards, terminal, states_n = self._memory.sample(self.batch_size)
         self.train_critic(states, actions, rewards, terminal, states_n)
         self.train_actor(states)
         #update the target models
@@ -89,7 +88,8 @@ class DDPG(object):
         with r current reward, gamma discount factor and q_n future q values.
         """
         actions_n = self.actor.model.predict(states_n)
-        q_values_n = self.critic.target_model.predict(states_n, actions_n)
+        print(states_n.shape, actions_n.shape)
+        q_values_n = self.critic.target_model.predict([states_n, actions_n])
         q_targets = []
 
         for (reward, q_value_n, this_done) in zip(rewards, q_values_n, terminal):
@@ -106,3 +106,9 @@ class DDPG(object):
         """
         actions = self.actor.model.predict(states)
         self.critic.get_gradients(states, actions)
+
+    def remember(self, state, state_new, action, reward, terminal):
+        """
+        replay buffer interfate to the outsize
+        """
+        self._memory.remember(state, state_new, action, reward, terminal)
