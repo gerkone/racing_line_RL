@@ -12,7 +12,7 @@ from network.critic import Critic
 class Agent(object):
     def __init__(self, state_dims, action_dims, actor_lr = 1e-5,
                 critic_lr = 1e-3, batch_size = 64, gamma = 0.99,
-                buf_size = 10000, tau = 1e-3, fcl1_size = 300, fcl2_size = 600):
+                buf_size = 10000, tau = 1e-3, fcl1_size = 300, fcl2_size = 400):
         tf.disable_v2_behavior()
         self.n_actions = action_dims[0]
         self.n_states = state_dims[0]
@@ -42,6 +42,7 @@ class Agent(object):
         state = state.reshape(self.n_states,1).T
         action = self.actor.model.predict(state)[0]
         action_p = action + noise
+        #clip the resulting action with the bounds
         return action_p
 
     def learn(self):
