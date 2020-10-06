@@ -28,20 +28,36 @@ The brake and accelerator actions can be combined to reduce action space, and av
 TODO
 
 ### Methods
-- **step(action) : tuple[3]**
+#### **step(action) : tuple[3]**
   
   Returns the envionment observation given an action. The tuple represents an opservaion: it is made of the state to which we transitioned, the reward coming from the transition and wether the transition leads to a terminal state.
 
-- **reset() : state**
+#### **reset() : state**
   
   Returns initial state of the environment and resets the world parameters.
  
-- **render() : nil**
+#### **render() : nil**
   
   Visualizes the current state of the environment.
 
 ### Fields
 TODO
+
+## IA Agent
+### DDPG
+The decision making is performed by a (deep) reinforcement learning agent. Considering the continuous nature of the environment and the possibility to train for an undefinedly long time we choose to use Deep Deterministic Policy Gradient or DDPG. 
+DDPG is an model-free, off-policy algorithm that learns a Q-function and a policy in a **continuous** action space. It is inspired by Deep Q Learning, and can be seen as DQN on a continuous acion space.
+It employs the use of off-policy data and the Bellman equation to learn the Q function which is in turn used to derive and learn the policy.
+
+The DDPG algorith was originaly described [this paper](https://arxiv.org/pdf/1509.02971.pdf).
+
+#### Main features:
+- Stochastic (deep) model estimation allows for continuous (infinite) action spaces.
+- Use of a **noise process** (for example the _Ornstein–Uhlenbeck_ process) for action space exploration.
+- Use of **experience replay** for a stable learning on previous experiences.
+- Actor and critic structure
+- Use of target models for both actor and critic networks (weight transfer with Polyak averaging).
+- Use of the Bellman equation to describe the optimal q-value function for each pair <state, action>.
 
 ## Resources
 ### AI
