@@ -1,12 +1,11 @@
-from keras.layers import Dense, Input, add, BatchNormalization
-from keras import Model
-from keras.optimizers import Adam
-from keras.losses import mean_squared_error as mse
-from tensorflow.python.keras import backend as keras_backend
-from keras.initializers import RandomUniform
-import tensorflow.compat.v1 as tf
 import numpy as np
+import keras.backend as K
+import tensorflow as tf
 
+from keras.models import Model
+from keras.layers import Dense, Input, BatchNormalization, Activation, multiply, concatenate, Flatten
+from keras.initializers import RandomUniform
+from keras.optimizers import Adam
 
 """
 Critic network:
@@ -14,7 +13,8 @@ stochastic funcion approssimator for the Q value function C : SxA -> R
 (with S set of states, A set of actions)
 """
 class Critic(object):
-    def __init__(self, tensorflow_session, state_dims, action_dims, lr, batch_size, tau, fcl1_size, fcl2_size):
+    def __init__(self, tensorflow_session, state_dims, action_dims, lr, batch_size, tau,
+                fcl1_size, fcl2_size, middle_layer1_size, middle_layer2_size):
         self.session = tensorflow_session
         self.state_dims = state_dims
         self.action_dims = action_dims
@@ -23,23 +23,15 @@ class Critic(object):
         self.tau = tau
         self.fcl1_size = fcl1_size
         self.fcl2_size = fcl2_size
+        self.middle_layer1_size = middle_layer1_size
+        self.middle_layer2_size = middle_layer2_size
 
-        tf.disable_v2_behavior()
-
-        keras_backend.set_session(tensorflow_session)
-
-        self.q_target = tf.placeholder(tf.float32, shape=[None,1], name='targets')
-
-        self.model, self.state_input, self.action_input, self.loss = self.build_network()
+        self.model, self.state_input, self.action_input = self.build_network()
         #duplicate model for target
-        self.target_model, _, _, _ = self.build_network()
+        self.target_model, _, _ = self.build_network()
 
-        #generate gradients
-        self.action_gradients = tf.gradients(self.model.output, self.action_input)
-
-        self.optimizer = tf.train.AdamOptimizer(self.lr).minimize(self.loss)
-
-        self.session.run(tf.initialize_all_variables())
+        #generate gradient function
+        self.action_gradients = self._generate_gradients()
 
     def build_network(self):
         """
@@ -60,33 +52,24 @@ class Critic(object):
                     kernel_initializer = RandomUniform(-f2, f2),
                     bias_initializer = RandomUniform(-f2, f2))(fc_layer_state)
         #merge the action hidden layer with the first layer
-        merged = add([hidden, fc_layer_action])
+        hidden = Flatten()(hidden)
+        merged = concatenate([hidden, fc_layer_action])
 
         #output layer, single real number as output (q)
         output_layer = Dense(1, activation="linear")(merged)
         #realize the C(s,a) = q function
         model = Model([state_input_layer, action_input_layer], output_layer)
+        #config optimizer and loss
+        model.compile(Adam(self.lr), "mse")
 
-        loss = mse(self.q_target, output_layer)
-        return model, state_input_layer, action_input_layer, loss
-
-    @tf.function
-    def optimize(self):
-        self.optimizer()
+        return model, state_input_layer, action_input_layer
 
     def train(self, states, actions, q_target):
         """
         Update the weights with the Q targets
         """
-        # self.state_input = states,
-        # self.action_input = actions,
-        # self.q_target = q_target
-        q_target = q_target.reshape(1, 1)
-        self.session.run(self.optimizer, feed_dict={
-            self.state_input: states,
-            self.action_input: actions,
-            self.q_target: q_target
-        })
+        #use the compiled model training to fit the weights
+        return self.model.train_on_batch([states, actions], q_target)
 
     def update_target(self):
         """
@@ -96,15 +79,16 @@ class Critic(object):
         """
         weights = self.model.get_weights()
         targets = self.target_model.get_weights()
-        targets = [self.tau * weight + (1 - self.tau) * target for weight,target in zip(weights, targets)]
+        targets = [self.tau * weight + (1 - self.tau) * target for weight, target in zip(weights, targets)]
         #update the target values
         self.target_model.set_weights(targets)
+
+    def _generate_gradients(self):
+        action_gradients = K.gradients(self.model.output, [self.action_input])
+        return K.function([self.state_input, self.action_input], action_gradients)
 
     def get_gradients(self, states, actions):
         """
         Return the model action gradients
         """
-        return np.array(self.session.run(self.action_gradients, feed_dict={
-            self.state_input: states,
-            self.action_input: actions
-        }))
+        return np.array(self.action_gradients([states, actions]))

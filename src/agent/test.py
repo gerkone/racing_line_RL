@@ -6,17 +6,20 @@ import numpy as np
 import matplotlib.pyplot as plt
 import tensorflow as tf
 
-N_EPISODES = 5000
+N_EPISODES = 100
 
 def main():
     #get simulation environment
-    env = gym.make("Pendulum-v0")
+    env = gym.make("BipedalWalker-v3")
     state_dims = [len(env.observation_space.low)]
     action_dims = [len(env.action_space.low)]
+    action_boundaries = [env.action_space.low, env.action_space.high]
+    print(action_boundaries)
     #create agent with environment parameters
     agent = Agent(state_dims = state_dims, action_dims = action_dims,
-                actor_lr = 1e-3, critic_lr = 1e-3, batch_size = 32, gamma = 0.99,
-                buf_size = 10000, tau = 1e-2, fcl1_size = 8, fcl2_size = 8)
+                action_boundaries = action_boundaries, actor_lr = 0.0001,
+                critic_lr = 0.0002, batch_size = 64, gamma = 0.99,
+                buf_size = 50000, tau = 0.005, fcl1_size = 512, fcl2_size = 1024)
     np.random.seed(0)
     scores = []
     #training loop: call remember on predicted states and train the models

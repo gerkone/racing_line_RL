@@ -10,8 +10,8 @@ from network.critic import Critic
 
 """
 class Agent(object):
-    def __init__(self, state_dims, action_dims, actor_lr = 1e-5,
-                critic_lr = 1e-3, batch_size = 64, gamma = 0.99,
+    def __init__(self, state_dims, action_dims, action_boundaries,
+                actor_lr = 1e-5, critic_lr = 1e-3, batch_size = 64, gamma = 0.99,
                 buf_size = 10000, tau = 1e-3, fcl1_size = 300, fcl2_size = 400):
         tf.disable_v2_behavior()
         self.n_actions = action_dims[0]
@@ -20,6 +20,8 @@ class Agent(object):
         self._memory = ReplayBuffer(buf_size, state_dims, action_dims)
         self._noise = OUActionNoise(mu=np.zeros(action_dims))
         self.gamma = gamma
+        self.lower_bound = action_boundaries[0]
+        self.upper_bound = action_boundaries[1]
 
         #generate tensorflow session
         session = tf.Session()
@@ -27,11 +29,13 @@ class Agent(object):
         self.actor = Actor(tensorflow_session = session, state_dims = state_dims,
                             action_dims = action_dims, lr = actor_lr,
                             batch_size = batch_size, tau = tau,
+                            upper_bound = self.upper_bound,
                             fcl1_size = fcl1_size, fcl2_size = fcl2_size)
         self.critic = Critic(tensorflow_session = session, state_dims = state_dims,
                             action_dims = action_dims, lr = critic_lr,
                             batch_size = batch_size, tau = tau,
-                            fcl1_size = fcl1_size, fcl2_size = fcl2_size)
+                            fcl1_size = fcl1_size, fcl2_size = fcl2_size,
+                            middle_layer1_size = 16, middle_layer2_size = 32)
 
     def get_action(self, state):
         """
@@ -39,10 +43,11 @@ class Agent(object):
         in training. Noise added for exploration
         """
         noise = self._noise()
-        state = state.reshape(self.n_states,1).T
+        state = state.reshape(self.n_states, 1).T
         action = self.actor.model.predict(state)[0]
         action_p = action + noise
         #clip the resulting action with the bounds
+        action_p = np.clip(action_p, self.lower_bound, self.upper_bound)
         return action_p
 
     def learn(self):
@@ -95,12 +100,12 @@ class Agent(object):
         q_targets = []
 
         for (reward, q_value_n, this_done) in zip(rewards, q_values_n, terminal):
-            q_target = reward
-            if(not this_done):
-                q_target += self.gamma * q_value_n
-            q_targets.append(q_target)
-
-        return q_target
+            if(this_done):
+                q_target = reward
+            else:
+                q_target = reward + self.gamma * q_value_n
+            q_targets.append(q_target.item())
+        return np.array(q_targets)
 
     def get_action_gradients(self, states):
         """

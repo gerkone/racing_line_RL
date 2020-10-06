@@ -1,11 +1,10 @@
 import numpy as np
-import math
-from keras.models import model_from_json, Sequential, Model
-from keras.layers import Dense, Input, BatchNormalization, Activation
+import keras.backend as K
+import tensorflow as tf
+
+from keras.models import Model
+from keras.layers import Dense, Input, BatchNormalization, Activation, Lambda
 from keras.initializers import RandomUniform
-from keras.optimizers import Adam
-import tensorflow.compat.v1 as tf
-from tensorflow.python.keras import backend as keras_backend
 
 """
 Actor network:
@@ -13,7 +12,7 @@ stochastic funcion approssimator for the deterministic policy map u : S -> A
 (with S set of states, A set of actions)
 """
 class Actor(object):
-    def __init__(self, tensorflow_session, state_dims, action_dims, lr, batch_size, tau, fcl1_size, fcl2_size):
+    def __init__(self, tensorflow_session, state_dims, action_dims, lr, batch_size, tau, fcl1_size, fcl2_size, upper_bound):
         self.session = tensorflow_session
         self.state_dims = state_dims
         self.action_dims = action_dims
@@ -22,63 +21,48 @@ class Actor(object):
         self.tau = tau
         self.fcl1_size = fcl1_size
         self.fcl2_size = fcl2_size
+        self.upper_bound = upper_bound
 
-        tf.disable_v2_behavior()
-
-        keras_backend.set_session(tensorflow_session)
-
-        self.model, self.model_weights, self.model_input = self.build_network()
+        self.model = self.build_network()
         #duplicate model for target
-        self.target_model, _, _ = self.build_network()
+        self.target_model = self.build_network()
 
-        #generate gradients
-        self.action_gradients = tf.compat.v1.placeholder(tf.float32, [None, *self.action_dims])
-        self.unnormalized_gradients = tf.gradients(self.model.output, self.model_weights, -self.action_gradients)
-        #normalize gradients by batch size
-        self.actor_gradients = list(map(lambda x: tf.div(x, self.batch_size),self.unnormalized_gradients))
         #instantiate optimizer with gradients and weights
-        self.optimizer = tf.train.AdamOptimizer(self.lr).apply_gradients(zip(self.actor_gradients, self.model_weights))
+        self.optimizer = self._generate_Optimizer()
 
-        self.session.run(tf.initialize_all_variables())
+        # self.session.run(tf.initialize_all_variables())
 
 
     def build_network(self):
         """
         Builds the model. Consists of two fully connected layers.
         """
-        model = Sequential()
-        #input layer
+        # input layer
         input_layer = Input(shape = self.state_dims)
-        model.add(input_layer)
-
-        f1 = 1. / np.sqrt(self.fcl1_size)
         #first fully connected layer
-        model.add(Dense(self.fcl1_size, kernel_initializer = RandomUniform(-f1, f1),
-                    bias_initializer = RandomUniform(-f1, f1)))
-        model.add(BatchNormalization())
-        model.add(Activation("relu"))
-
-        f2 = 1. / np.sqrt(self.fcl2_size)
+        f1 = 1. / np.sqrt(self.fcl1_size)
+        fcl1 = Dense(self.fcl1_size, activation="relu", kernel_initializer = RandomUniform(-f1, f1),
+                        bias_initializer = RandomUniform(-f1, f1))(input_layer)
+        fcl1 = BatchNormalization()(fcl1)
         #second fully connected layer
-        model.add(Dense(self.fcl2_size, kernel_initializer = RandomUniform(-f2, f2),
-                    bias_initializer = RandomUniform(-f2, f2)))
-        model.add(BatchNormalization())
-        model.add(Activation("relu"))
-
+        f2 = 1. / np.sqrt(self.fcl1_size)
+        fcl2 = Dense(self.fcl2_size, activation="relu", kernel_initializer = RandomUniform(-f2, f2),
+                        bias_initializer = RandomUniform(-f2, f2))(fcl1)
+        fcl2 = BatchNormalization()(fcl2)
         #output layer
-        model.add(Dense(*self.action_dims))
-        model.add(Activation("sigmoid"))
-
-        return model, model.trainable_weights, input_layer
+        f3 = 0.003
+        output_layer = Dense(*self.action_dims, activation="tanh", kernel_initializer = RandomUniform(-f3, f3),
+                        bias_initializer = RandomUniform(-f3, f3))(fcl2)
+        #scale the output
+        output_layer = Lambda(lambda i : i * self.upper_bound)(output_layer)
+        model = Model(input_layer, output_layer)
+        return model
 
     def train(self, states, action_gradients):
         """
         Update the weights with the new gradients
         """
-        self.session.run(self.optimizer, feed_dict={
-        self.model_input: states,
-        self.action_gradients: action_gradients
-        })
+        self.optimizer([states, action_gradients])
 
     def update_target(self):
         """
@@ -91,3 +75,11 @@ class Actor(object):
         targets = [self.tau * weight + (1 - self.tau) * target for weight,target in zip(weights, targets)]
         #update the target values
         self.target_model.set_weights(targets)
+
+    def _generate_Optimizer(self):
+        #generate gradients
+        action_gradients = K.placeholder(shape=(None, *self.action_dims))
+        unnormalized_actor_gradients = tf.gradients(self.model.output, self.model.trainable_weights, -action_gradients)
+        actor_gradients = zip(unnormalized_actor_gradients, self.model.trainable_weights)
+        return K.function(inputs = [self.model.input, action_gradients],
+                    outputs=[K.constant(1)], updates = [tf.optimizers.Adam(self.lr).apply_gradients(actor_gradients)])
