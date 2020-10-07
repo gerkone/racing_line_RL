@@ -12,8 +12,7 @@ stochastic funcion approssimator for the deterministic policy map u : S -> A
 (with S set of states, A set of actions)
 """
 class Actor(object):
-    def __init__(self, tensorflow_session, state_dims, action_dims, lr, batch_size, tau, fcl1_size, fcl2_size, upper_bound):
-        self.session = tensorflow_session
+    def __init__(self, state_dims, action_dims, lr, batch_size, tau, fcl1_size, fcl2_size, upper_bound):
         self.state_dims = state_dims
         self.action_dims = action_dims
         self.lr = lr
@@ -70,11 +69,14 @@ class Actor(object):
         defined as:
         target = tau * weights + (1 - tau) * target
         """
-        weights = self.model.get_weights()
+        i = 0
+        weights = []
         targets = self.target_model.get_weights()
-        targets = [self.tau * weight + (1 - self.tau) * target for weight,target in zip(weights, targets)]
+        for weight in self.model.get_weights():
+            weights.append(weight * self.tau + targets[i] * (1 - self.tau))
+            i+=1
         #update the target values
-        self.target_model.set_weights(targets)
+        self.target_model.set_weights(weights)
 
     def _generate_Optimizer(self):
         #generate gradients

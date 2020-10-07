@@ -26,14 +26,12 @@ class Agent(object):
         #generate tensorflow session
         session = tf.Session()
 
-        self.actor = Actor(tensorflow_session = session, state_dims = state_dims,
-                            action_dims = action_dims, lr = actor_lr,
-                            batch_size = batch_size, tau = tau,
+        self.actor = Actor(state_dims = state_dims, action_dims = action_dims,
+                            lr = actor_lr, batch_size = batch_size, tau = tau,
                             upper_bound = self.upper_bound,
                             fcl1_size = fcl1_size, fcl2_size = fcl2_size)
-        self.critic = Critic(tensorflow_session = session, state_dims = state_dims,
-                            action_dims = action_dims, lr = critic_lr,
-                            batch_size = batch_size, tau = tau,
+        self.critic = Critic(state_dims = state_dims, action_dims = action_dims,
+                            lr = critic_lr, batch_size = batch_size, tau = tau,
                             fcl1_size = fcl1_size, fcl2_size = fcl2_size,
                             middle_layer1_size = 16, middle_layer2_size = 32)
 

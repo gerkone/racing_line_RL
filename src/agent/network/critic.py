@@ -13,9 +13,8 @@ stochastic funcion approssimator for the Q value function C : SxA -> R
 (with S set of states, A set of actions)
 """
 class Critic(object):
-    def __init__(self, tensorflow_session, state_dims, action_dims, lr, batch_size, tau,
+    def __init__(self, state_dims, action_dims, lr, batch_size, tau,
                 fcl1_size, fcl2_size, middle_layer1_size, middle_layer2_size):
-        self.session = tensorflow_session
         self.state_dims = state_dims
         self.action_dims = action_dims
         self.lr = lr
@@ -77,11 +76,14 @@ class Critic(object):
         defined as:
         target = tau * weights + (1 - tau) * target
         """
-        weights = self.model.get_weights()
+        i = 0
+        weights = []
         targets = self.target_model.get_weights()
-        targets = [self.tau * weight + (1 - self.tau) * target for weight, target in zip(weights, targets)]
+        for weight in self.model.get_weights():
+            weights.append(weight * self.tau + targets[i] * (1 - self.tau))
+            i+=1
         #update the target values
-        self.target_model.set_weights(targets)
+        self.target_model.set_weights(weights)
 
     def _generate_gradients(self):
         action_gradients = K.gradients(self.model.output, [self.action_input])
