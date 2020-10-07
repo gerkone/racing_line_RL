@@ -2,9 +2,10 @@ import numpy as np
 import keras.backend as K
 import tensorflow as tf
 
-from keras.models import Model
-from keras.layers import Dense, Input, BatchNormalization, Activation, Lambda
-from keras.initializers import RandomUniform
+from tensorflow.keras.models import Model
+from tensorflow.keras.layers import Dense, Input, BatchNormalization, Activation, Lambda
+from tensorflow.keras.initializers import RandomUniform
+from tensorflow.keras.optimizers import Adam
 
 """
 Actor network:
@@ -25,30 +26,32 @@ class Actor(object):
         self.model = self.build_network()
         #duplicate model for target
         self.target_model = self.build_network()
+        self.target_model.set_weights(self.model.get_weights())
 
-        #instantiate optimizer with gradients and weights
-        self.optimizer = self._generate_Optimizer()
-
-        # self.session.run(tf.initialize_all_variables())
+        self.optimizer = Adam(self.lr)
 
 
     def build_network(self):
         """
         Builds the model. Consists of two fully connected layers.
         """
-        # input layer
+        # -- input layer --
         input_layer = Input(shape = self.state_dims)
-        #first fully connected layer
+        # -- first fully connected layer --
         f1 = 1. / np.sqrt(self.fcl1_size)
-        fcl1 = Dense(self.fcl1_size, activation="relu", kernel_initializer = RandomUniform(-f1, f1),
+        fcl1 = Dense(self.fcl1_size, kernel_initializer = RandomUniform(-f1, f1),
                         bias_initializer = RandomUniform(-f1, f1))(input_layer)
         fcl1 = BatchNormalization()(fcl1)
-        #second fully connected layer
+        #activation applied after batchnorm
+        fcl1 = Activation("relu")(fcl1)
+        # -- second fully connected layer --
         f2 = 1. / np.sqrt(self.fcl1_size)
-        fcl2 = Dense(self.fcl2_size, activation="relu", kernel_initializer = RandomUniform(-f2, f2),
+        fcl2 = Dense(self.fcl2_size, kernel_initializer = RandomUniform(-f2, f2),
                         bias_initializer = RandomUniform(-f2, f2))(fcl1)
         fcl2 = BatchNormalization()(fcl2)
-        #output layer
+        #activation applied after batchnorm
+        fcl2 = Activation("relu")(fcl2)
+        # -- output layer --
         f3 = 0.003
         output_layer = Dense(*self.action_dims, activation="tanh", kernel_initializer = RandomUniform(-f3, f3),
                         bias_initializer = RandomUniform(-f3, f3))(fcl2)
@@ -57,11 +60,17 @@ class Actor(object):
         model = Model(input_layer, output_layer)
         return model
 
-    def train(self, states, action_gradients):
+    @tf.function
+    def train(self, states, critic_model):
         """
         Update the weights with the new gradients
         """
-        self.optimizer([states, action_gradients])
+        with tf.GradientTape() as tape:
+            actions = self.model(states, training=True)
+            q_value = critic_model([states, actions], training=True)
+            loss = -tf.math.reduce_mean(q_value)
+        gradient = tape.gradient(loss, self.model.trainable_variables)
+        self.optimizer.apply_gradients(zip(gradient, self.model.trainable_variables))
 
     def update_target(self):
         """
@@ -77,11 +86,3 @@ class Actor(object):
             i+=1
         #update the target values
         self.target_model.set_weights(weights)
-
-    def _generate_Optimizer(self):
-        #generate gradients
-        action_gradients = K.placeholder(shape=(None, *self.action_dims))
-        unnormalized_actor_gradients = tf.gradients(self.model.output, self.model.trainable_weights, -action_gradients)
-        actor_gradients = zip(unnormalized_actor_gradients, self.model.trainable_weights)
-        return K.function(inputs = [self.model.input, action_gradients],
-                    outputs=[K.constant(1)], updates = [tf.optimizers.Adam(self.lr).apply_gradients(actor_gradients)])

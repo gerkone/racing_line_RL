@@ -6,20 +6,20 @@ import numpy as np
 import matplotlib.pyplot as plt
 import tensorflow as tf
 
-N_EPISODES = 2000
+N_EPISODES = 200
 
 def main():
     #get simulation environment
-    env = gym.make("LunarLanderContinuous-v2")
+    env = gym.make("MountainCarContinuous-v0")
     state_dims = [len(env.observation_space.low)]
     action_dims = [len(env.action_space.low)]
     action_boundaries = [env.action_space.low, env.action_space.high]
     print(action_boundaries)
     #create agent with environment parameters
     agent = Agent(state_dims = state_dims, action_dims = action_dims,
-                action_boundaries = action_boundaries, actor_lr = 0.0001,
-                critic_lr = 0.0002, batch_size = 64, gamma = 0.99,
-                buf_size = 500000, tau = 0.001, fcl1_size = 400, fcl2_size = 500)
+                action_boundaries = action_boundaries, actor_lr = 0.001,
+                critic_lr = 0.002, batch_size = 64, gamma = 0.99,
+                buf_size = 50000, tau = 0.001, fcl1_size = 256, fcl2_size = 256)
     np.random.seed(0)
     scores = []
     #training loop: call remember on predicted states and train the models
