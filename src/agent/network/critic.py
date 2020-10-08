@@ -36,9 +36,9 @@ class Critic(object):
         self.optimizer = Adam(self.lr)
 
     def build_network(self):
-        # """
-        # Builds the model (non-sequential, state and action as inputs).
-        # """
+        """
+        Builds the model (non-sequential, state and action as inputs).
+        """
         # -- state input --
         state_input_layer = Input(shape=(self.state_dims))
         # -- action input --
@@ -73,21 +73,25 @@ class Critic(object):
 
         # # State as input
         # state_input_layer = Input(shape=(self.state_dims))
-        # state_middle_layer = Dense(self.middle_layer1_size, activation="relu")(state_input_layer)
-        # state_middle_layer = Dense(self.middle_layer2_size, activation="relu")(state_middle_layer)
+        # state_middle_layer1 = Dense(self.middle_layer1_size, activation="relu")(state_input_layer)
+        # state_middle_layer2 = Dense(self.middle_layer2_size, activation="relu")(state_middle_layer1)
         #
         # # Action as input
         # action_input_layer = Input(shape=(self.action_dims))
         # action_middle_layer = Dense(self.middle_layer2_size, activation="relu")(action_input_layer)
         #
         # # Both are passed through seperate layer before concatenating
-        # concat = Concatenate()([state_middle_layer, action_middle_layer])
-        #
-        # fcl1 = Dense(self.fcl1_size)(concat)
+        # concat = Concatenate()([state_middle_layer2, action_middle_layer])
+        # f1 = 1. / np.sqrt(self.fcl1_size)
+        # fcl1 = Dense(self.fcl1_size, kernel_initializer = RandomUniform(-f1, f1),
+        #             bias_initializer = RandomUniform(-f1, f1))(concat)
         # fcl1 = BatchNormalization()(fcl1)
         # #activation applied after batchnorm
         # fcl1 = Activation("relu")(fcl1)
-        # fcl2 = Dense(self.fcl2_size)(fcl1)
+        #
+        # f2 = 1. / np.sqrt(self.fcl2_size)
+        # fcl2 = Dense(self.fcl2_size, kernel_initializer = RandomUniform(-f2, f2),
+        #             bias_initializer = RandomUniform(-f2, f2))(fcl1)
         # fcl2 = BatchNormalization()(fcl2)
         # #activation applied after batchnorm
         # fcl2 = Activation("relu")(fcl2)
