@@ -8,7 +8,7 @@ class ReplayBuffer(object):
         self.state_buf = np.zeros((self.buf_size, *input_shape))
         self.trans_buf = np.zeros((self.buf_size, *input_shape))
         self.action_buf = np.zeros((self.buf_size, *output_shape))
-        self.reward_buf = np.zeros(self.buf_size)
+        self.reward_buf = np.zeros((self.buf_size, 1))
         self.terminal_buf = np.zeros(self.buf_size, dtype=np.float32)
 
     def remember(self, state, state_new, action, reward, terminal):

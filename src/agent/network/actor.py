@@ -38,16 +38,12 @@ class Actor(object):
         # -- input layer --
         input_layer = Input(shape = self.state_dims)
         # -- first fully connected layer --
-        f1 = 1. / np.sqrt(self.fcl1_size)
-        fcl1 = Dense(self.fcl1_size, kernel_initializer = RandomUniform(-f1, f1),
-                        bias_initializer = RandomUniform(-f1, f1))(input_layer)
+        fcl1 = Dense(self.fcl1_size)(input_layer)
         fcl1 = BatchNormalization()(fcl1)
         #activation applied after batchnorm
         fcl1 = Activation("relu")(fcl1)
         # -- second fully connected layer --
-        f2 = 1. / np.sqrt(self.fcl1_size)
-        fcl2 = Dense(self.fcl2_size, kernel_initializer = RandomUniform(-f2, f2),
-                        bias_initializer = RandomUniform(-f2, f2))(fcl1)
+        fcl2 = Dense(self.fcl2_size)(fcl1)
         fcl2 = BatchNormalization()(fcl2)
         #activation applied after batchnorm
         fcl2 = Activation("relu")(fcl2)
@@ -57,7 +53,9 @@ class Actor(object):
                         bias_initializer = RandomUniform(-f3, f3))(fcl2)
         #scale the output
         output_layer = Lambda(lambda i : i * self.upper_bound)(output_layer)
+        # output_layer =  output_layer * self.upper_bound
         model = Model(input_layer, output_layer)
+        model.summary()
         return model
 
     @tf.function
@@ -78,11 +76,11 @@ class Actor(object):
         defined as:
         target = tau * weights + (1 - tau) * target
         """
-        i = 0
-        weights = []
-        targets = self.target_model.get_weights()
-        for weight in self.model.get_weights():
-            weights.append(weight * self.tau + targets[i] * (1 - self.tau))
-            i+=1
-        #update the target values
-        self.target_model.set_weights(weights)
+        # faster updates woth graph mode
+        self._transfer(self.model.variables, self.target_model.variables)
+
+    @tf.function
+    def _transfer(self, model_weights, target_weights):
+        for (weight, target) in zip(model_weights, target_weights):
+            #update the target values
+            target.assign(weight * self.tau + target * (1 - self.tau))

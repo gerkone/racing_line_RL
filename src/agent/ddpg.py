@@ -1,3 +1,5 @@
+import logging
+
 import numpy as np
 import tensorflow as tf
 
@@ -22,6 +24,8 @@ class Agent(object):
         self.lower_bound = action_boundaries[0]
         self.upper_bound = action_boundaries[1]
 
+        logging.getLogger("tensorflow").setLevel(logging.FATAL)
+
         self.actor = Actor(state_dims = state_dims, action_dims = action_dims,
                             lr = actor_lr, batch_size = batch_size, tau = tau,
                             upper_bound = self.upper_bound,
@@ -38,7 +42,7 @@ class Agent(object):
         """
         noise = self._noise()
         state = state.reshape(self.n_states, 1).T
-        action = self.actor.model(state)[0]
+        action = self.actor.model.predict(state)[0]
         action_p = action + noise
         #clip the resulting action with the bounds
         action_p = np.clip(action_p, self.lower_bound, self.upper_bound)

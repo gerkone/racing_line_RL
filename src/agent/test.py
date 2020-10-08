@@ -4,13 +4,12 @@ from gym import wrappers
 import os
 import numpy as np
 import matplotlib.pyplot as plt
-import tensorflow as tf
 
-N_EPISODES = 200
+N_EPISODES = 5000
 
 def main():
     #get simulation environment
-    env = gym.make("MountainCarContinuous-v0")
+    env = gym.make("Pendulum-v0")
     state_dims = [len(env.observation_space.low)]
     action_dims = [len(env.action_space.low)]
     action_boundaries = [env.action_space.low, env.action_space.high]
@@ -44,7 +43,10 @@ def main():
             env.render()
         scores.append(score)
         print("Iteration {:d} --> score {:.2f}. Running average {:.2f}".format( i, score, np.mean(scores)))
-
+    plt.plot(scores)
+    plt.xlabel("Episode")
+    plt.ylabel("Cumulate reward")
+    plt.show()
 
 
 
