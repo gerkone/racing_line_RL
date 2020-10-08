@@ -14,7 +14,7 @@ from network.critic import Critic
 class Agent(object):
     def __init__(self, state_dims, action_dims, action_boundaries,
                 actor_lr = 1e-5, critic_lr = 1e-3, batch_size = 64, gamma = 0.99,
-                buf_size = 10000, tau = 1e-3, fcl1_size = 300, fcl2_size = 400):
+                buf_size = 10000, tau = 1e-3, fcl1_size = 256, fcl2_size = 256):
         self.n_actions = action_dims[0]
         self.n_states = state_dims[0]
         self.batch_size = batch_size
@@ -82,7 +82,7 @@ class Agent(object):
         """
         Use updated Q targets to train the critic network
         """
-        self.critic.train(states, actions, rewards, states_n, self.actor.target_model, self.gamma)
+        self.critic.train(states, actions, rewards, terminal, states_n, self.actor.target_model, self.gamma)
 
     def train_actor(self, states):
         """

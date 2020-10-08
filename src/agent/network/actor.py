@@ -24,6 +24,7 @@ class Actor(object):
         self.upper_bound = upper_bound
 
         self.model = self.build_network()
+        self.model.summary()
         #duplicate model for target
         self.target_model = self.build_network()
         self.target_model.set_weights(self.model.get_weights())
@@ -50,12 +51,12 @@ class Actor(object):
         # -- output layer --
         f3 = 0.003
         output_layer = Dense(*self.action_dims, activation="tanh", kernel_initializer = RandomUniform(-f3, f3),
-                        bias_initializer = RandomUniform(-f3, f3))(fcl2)
+                        bias_initializer = RandomUniform(-f3, f3),
+                        kernel_regularizer=tf.keras.regularizers.l2(0.01))(fcl2)
         #scale the output
         output_layer = Lambda(lambda i : i * self.upper_bound)(output_layer)
         # output_layer =  output_layer * self.upper_bound
         model = Model(input_layer, output_layer)
-        model.summary()
         return model
 
     @tf.function

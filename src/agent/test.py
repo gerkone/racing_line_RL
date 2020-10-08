@@ -5,7 +5,7 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 
-N_EPISODES = 5000
+N_EPISODES = 1000
 
 def main():
     #get simulation environment
@@ -16,9 +16,9 @@ def main():
     print(action_boundaries)
     #create agent with environment parameters
     agent = Agent(state_dims = state_dims, action_dims = action_dims,
-                action_boundaries = action_boundaries, actor_lr = 0.001,
-                critic_lr = 0.002, batch_size = 64, gamma = 0.99,
-                buf_size = 50000, tau = 0.001, fcl1_size = 256, fcl2_size = 256)
+                action_boundaries = action_boundaries, actor_lr = 5 * 1e-3,
+                critic_lr = 3*1e-2, batch_size = 128, gamma = 0.99,
+                buf_size = int(1e6), tau = 0.001, fcl1_size = 400, fcl2_size = 300)
     np.random.seed(0)
     scores = []
     #training loop: call remember on predicted states and train the models
