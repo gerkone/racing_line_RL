@@ -9,12 +9,17 @@ using namespace std;
 
 GLuint renderingProgram; //GLuint è una shortcat per unsigned int
 GLuint vao[numVAOs];
+GLuint xLoc, yLoc;
+
+float XMotorcycle = 0.9, YMotorcycle = 0.9;
 
 GLuint createShaderProgram() {
   const char *vshaderSource =
     "#version 430 \n"
+    "uniform float x; \n"
+    "uniform float y; \n"
     "void main(void) \n"
-    "{gl_Position = vec4(0.0, 0.0, 0.0, 1.0);}";
+    "{gl_Position = vec4(x, y, 0.0, 1.0);}";
   const char *fshaderSource =
     "#version 430 \n"
     "out vec4 color; \n"
@@ -41,12 +46,20 @@ void init (GLFWwindow* window){
   renderingProgram = createShaderProgram();
   glGenVertexArrays(numVAOs, vao);
   glBindVertexArray(vao[0]);
-  glPointSize(30.0f); //Setta la grandezza di un Punto!
+  glPointSize(5.0f); //Setta la grandezza di un Punto!
 }
 
 void display (GLFWwindow* window, double currentTime){
-  glUseProgram(renderingProgram);
-  glDrawArrays(GL_POINTS, 0, 1);
+    glClear(GL_DEPTH_BUFFER_BIT);
+    glClearColor(0.0, 0.0, 0.0, 1.0);
+    glClear(GL_COLOR_BUFFER_BIT);
+    glUseProgram(renderingProgram);
+    
+    xLoc = glGetUniformLocation(renderingProgram, "x");
+    yLoc = glGetUniformLocation(renderingProgram, "y");
+    glUniform1f(xLoc, (float)XMotorcycle);
+    glUniform1f(yLoc, (float)YMotorcycle);
+    glDrawArrays(GL_POINTS, 0, 1);
 }
 
 int main(void){
