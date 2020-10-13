@@ -20,7 +20,6 @@ The state space is an abstraction of the set of measurements from an array of se
 | steering | [-1,+1] | Steering percentage |
 | brake | [-1,0] | Breaking percentage |
 | accelerator | [0,+1] | Accelerator percentage |
-| inclination | [-1, +1] | Vertical inclination (request) |
 
 The brake and accelerator actions can be combined to reduce action space, and avoid breaking while accelerating.
 
