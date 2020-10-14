@@ -7,10 +7,11 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtc/matrix_transform.hpp>
-#include "../Utils.h"
+#include "./Utils.h"
 #include <vector>
-#include "ImportedModel.cpp"
+#include "./BlenderImport/ImportedModel.cpp"
 
+using namespace std;
 #define numVAOs 1
 #define numVBOs 2
 
@@ -25,7 +26,7 @@ int width, height;
 float aspect;
 glm::mat4 pMat, vMat, mMat, mvMat;
 
-ImportedModel cube("Monkey.obj");
+ImportedModel cube("./BlenderImport/Moto.obj");
 
 void setupVertices(void){
     std::vector<glm::vec3> vert = cube.getVertices();
@@ -65,7 +66,7 @@ void setupVertices(void){
 }
 
 void init (GLFWwindow* window){
-    renderingProgram = createShaderProgram((char *)"vertShader.glsl",(char *) "fragShader.glsl");
+    renderingProgram = createShaderProgram((char *)"./BlenderImport/vertShader.glsl",(char *) "./BlenderImport/fragShader.glsl");
     cameraX = 0.0f; cameraY = 0.0f; cameraZ = 12.0f;
     cubeLocX = 0.0f; cubeLocY = -2.0f; cubeLocZ = 0.0f;
     setupVertices();
@@ -105,7 +106,17 @@ void display (GLFWwindow* window, double currentTime){
     glDrawArrays(GL_TRIANGLES, 0, cube.getNumVertices());
 }
 
-int main(void){
+int main(){
+    cout<<"Leggo File..."<<endl;
+    ifstream fileStream("./PositionData.dat", ios::in);
+    string line;
+    while (!fileStream.eof()){
+        getline(fileStream, line);
+        int pos = line.find("\t");
+        string x = line.substr(0,pos);
+        //CONTINUAAAAAAAA
+    }
+    cout<<"Lancio Programma..."<<endl;
     if (!glfwInit()) {exit(EXIT_FAILURE);}
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);

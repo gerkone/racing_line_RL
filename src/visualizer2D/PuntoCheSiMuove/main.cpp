@@ -1,6 +1,9 @@
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 #include <iostream>
+#include <math.h>
+
+#include "../../simulation_environment/Approssimazione-1/Motorcycle.h"
 
 using namespace std;
 
@@ -63,22 +66,33 @@ void display (GLFWwindow* window, double currentTime){
 }
 
 int main(void){
-  if (!glfwInit()) {exit(EXIT_FAILURE);}
-  glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-  glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-  GLFWwindow* window = glfwCreateWindow(600, 600, "02_DisegnoUnPunto", NULL, NULL);
-  glfwMakeContextCurrent(window);
-  if (glewInit() != GLEW_OK){exit(EXIT_FAILURE);}
-  glfwSwapInterval(1);
+    if (!glfwInit()) {exit(EXIT_FAILURE);}
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    GLFWwindow* window = glfwCreateWindow(1000, 1000, "FirstVisualizer2D", NULL, NULL);
+    glfwMakeContextCurrent(window);
+    if (glewInit() != GLEW_OK){exit(EXIT_FAILURE);}
+    glfwSwapInterval(1);
 
-  init(window);
-
-  while (!glfwWindowShouldClose(window)) {
-    display(window, glfwGetTime());
-    glfwSwapBuffers(window);
-    glfwPollEvents();
-  }
-  glfwDestroyWindow(window);
-  glfwTerminate();
-  exit(EXIT_SUCCESS);
+    init(window);
+    //--------------------------------------
+    Motorcycle m1(1, 1, 5, 10);
+    double T = 0;
+    double t = 0.01;
+    m1.setAs(5);
+    //--------------------------------------
+    while (!glfwWindowShouldClose(window)) {
+        display(window, glfwGetTime());
+        glfwSwapBuffers(window);
+        glfwPollEvents();
+        //--------------------------------------
+        XMotorcycle = m1.getX();
+        YMotorcycle = m1.getY();
+        T = T+t;
+        m1.Integrate(t); 
+        //--------------------------------------
+    }
+    glfwDestroyWindow(window);
+    glfwTerminate();
+    exit(EXIT_SUCCESS);
 }

@@ -32,6 +32,7 @@ public:
     }
     double calcAngularAccellerationMotorStroke();
     double calcAngularAccellerationAirFriction();
+    double calcAccellerationLeaning();
     void Integrate(double t);
     
     double getX(){return _x;}
@@ -60,6 +61,9 @@ double Motorcycle::calcAngularAccellerationMotorStroke(){
 double Motorcycle::calcAngularAccellerationAirFriction(){
     return -(2*_b*getV())/(3*_r*_m);
 }
+double Motorcycle::calcAccellerationLeaning(){
+    return 9.81*sin(_a);
+}
 void Motorcycle::Integrate(double t){
     _aa = calcAngularAccellerationMotorStroke() + calcAngularAccellerationAirFriction();
     _av = t*_aa + _av;
@@ -73,8 +77,11 @@ void Motorcycle::Integrate(double t){
     double temps = t*_av*_r;
     double tempx = temps*cos(alpha);
     double tempy = temps*sin(alpha);
-    _vx = abs(_x - tempx)/t;
-    _vy = abs(_y - tempy)/t;
+    _vx = _x - tempx/t;
+    _vy = _y - tempy/t;
+    
+    double trasversalAcc = calcAccellerationLeaning();
+    double tempv = t*trasversalAcc + 
     _x = tempx;
     _y = tempy;
 }
