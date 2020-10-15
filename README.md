@@ -45,12 +45,13 @@ TODO
 ## IA Agent
 ### DDPG
 The decision making is performed by a (deep) reinforcement learning agent. Considering the continuous nature of the environment and the possibility to train for an undefinedly long time we choose to use a modified version of Deep Deterministic Policy Gradient or DDPG.
-DDPG is an model-free, off-policy algorithm that learns a Q-function and a policy in a **continuous** action space. It is inspired by Deep Q Learning, and can be seen as DQN on a continuous acion space.
+
+Base DDPG is an model-free, off-policy algorithm that learns a Q-function and a policy in a **continuous** action space. It is inspired by Deep Q Learning, and can be seen as DQN on a continuous acion space.
 It employs the use of off-policy data and the Bellman equation to learn the Q function which is in turn used to derive and learn the policy.
 
 The DDPG algorith was originaly described [this paper](https://arxiv.org/pdf/1509.02971.pdf).
 
-#### Main features:
+#### Main features of DDPG:
 - Stochastic (deep) model estimation allows for continuous (infinite) action spaces.
 - Use of a **noise process** (for example the _Ornstein–Uhlenbeck_ process) for action space exploration.
 - Use of **experience replay** for a stable learning on previous experiences.
@@ -58,14 +59,14 @@ The DDPG algorith was originaly described [this paper](https://arxiv.org/pdf/150
 - Use of target models for both actor and critic networks (weight transfer with Polyak averaging).
 - Use of the Bellman equation to describe the optimal q-value function for each pair <state, action>.
 
-The changes made are inspired to the Twin Delayed DDPG or TD3 algorithm:
+The changes made are based on the Twin Delayed DDPG or TD3 algorithm:
 - **Twin**: the critic learns to approximate two concurrent Q-functions. The Q-value used in the target optimization is the lesser of the two.
 - **Delayed**: the critic is updated each step, while the actor is updated at a slower (delayed) rate.
 - Uniform noise is introduced to the target action. This is done to prevent overfitting in the policy model.
 
 The TD3 algorith was originaly described [this paper](https://arxiv.org/pdf/1802.09477.pdf).
 
-### Network structure
+### Network structures
 #### Critic:
 ![Critic](/img/networks/critic.png)
 #### Actor:
