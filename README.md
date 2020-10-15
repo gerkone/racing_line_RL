@@ -67,8 +67,8 @@ The changes made are based on the Twin Delayed DDPG or TD3 algorithm:
 The TD3 algorith was originaly described [this paper](https://arxiv.org/pdf/1802.09477.pdf).
 
 ### Network structures
-#### Critic:
-![Critic](/img/networks/critic.png)
+<!-- #### Critic:
+![Critic](/img/networks/critic.png) -->
 #### Actor:
 ![Actor](/img/networks/actor.png)
 ## Resources
