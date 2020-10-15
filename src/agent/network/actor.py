@@ -67,7 +67,8 @@ class Actor(object):
         """
         with tf.GradientTape() as tape:
             actions = self.model(states, training=True)
-            q_value = tf.gather(tf.transpose(critic_model([states, actions], training=True)), 0)
+            # q_value = tf.gather(tf.transpose(critic_model([states, actions], training=True)), 0)
+            q_value = critic_model([states, actions], training=True)
             # loss = - (minus) mean critic value
             loss = -tf.math.reduce_mean(q_value)
         gradient = tape.gradient(loss, self.model.trainable_variables)

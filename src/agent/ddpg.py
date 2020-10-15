@@ -52,7 +52,7 @@ class Agent(object):
         self.critic = Critic(state_dims = state_dims, action_dims = action_dims,
                             lr = critic_lr, batch_size = batch_size, tau = tau,
                             lower_bound = self.lower_bound, upper_bound = self.upper_bound,
-                            noise_clip = 0.5, fcl1_size = fcl1_size, fcl2_size = fcl2_size)
+                            noise_bound = self.upper_bound / 10, fcl1_size = fcl1_size, fcl2_size = fcl2_size)
 
     def get_action(self, state, step):
         """

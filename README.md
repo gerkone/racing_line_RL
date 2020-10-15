@@ -60,7 +60,7 @@ The DDPG algorith was originaly described [this paper](https://arxiv.org/pdf/150
 - Use of the Bellman equation to describe the optimal q-value function for each pair <state, action>.
 
 The changes made are based on the Twin Delayed DDPG or TD3 algorithm:
-- **Twin**: the critic learns to approximate two concurrent Q-functions. The Q-value used in the target optimization is the lesser of the two.
+- (TODO) **Twin**: the critic learns to approximate two concurrent Q-functions. The Q-value used in the target optimization is the lesser of the two.
 - **Delayed**: the critic is updated each step, while the actor is updated at a slower (delayed) rate.
 - Uniform noise is introduced to the target action. This is done to prevent overfitting in the policy model.
 
