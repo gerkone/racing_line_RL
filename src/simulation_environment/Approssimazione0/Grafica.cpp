@@ -2,9 +2,6 @@
 #include <GLFW/glfw3.h>
 #include <iostream>
 #include <math.h>
-
-#include "../../simulation_environment/Approssimazione-1/Motorcycle.h"
-
 using namespace std;
 
 #define numVAOs 1
@@ -14,7 +11,7 @@ GLuint renderingProgram; //GLuint è una shortcat per unsigned int
 GLuint vao[numVAOs];
 GLuint xLoc, yLoc;
 
-float XMotorcycle = 0.9, YMotorcycle = 0.9;
+bool storgiSx=false, storgiDx=false;
 
 GLuint createShaderProgram() {
   const char *vshaderSource =
@@ -49,50 +46,71 @@ void init (GLFWwindow* window){
   renderingProgram = createShaderProgram();
   glGenVertexArrays(numVAOs, vao);
   glBindVertexArray(vao[0]);
-  glPointSize(5.0f); //Setta la grandezza di un Punto!
+  glPointSize(1.0f); //Setta la grandezza di un Punto!
 }
 
-void display (GLFWwindow* window, double currentTime, double){
-    glClear(GL_DEPTH_BUFFER_BIT);
+void display (GLFWwindow* window, double currentTime, double x, double y){
+    /*glClear(GL_DEPTH_BUFFER_BIT);
     glClearColor(0.0, 0.0, 0.0, 1.0);
-    glClear(GL_COLOR_BUFFER_BIT);
+    glClear(GL_COLOR_BUFFER_BIT);*/
     glUseProgram(renderingProgram);
     
     xLoc = glGetUniformLocation(renderingProgram, "x");
     yLoc = glGetUniformLocation(renderingProgram, "y");
-    glUniform1f(xLoc, (float)XMotorcycle);
-    glUniform1f(yLoc, (float)YMotorcycle);
+    glUniform1f(xLoc, (float)x);
+    glUniform1f(yLoc, (float)y);
     glDrawArrays(GL_POINTS, 0, 1);
 }
 
-int main(void){
+void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods){
+    //cout<<"KEY:"<<key<<" - "<<glfwGetKeyScancode(key)<<endl;
+    /*FrecciaSu : 265
+     *FrecciaGiu : 264
+     *FrecciaSx : 263
+     *FrecciaDx : 262
+    */
+    if (key == 265 && action == GLFW_PRESS){
+        
+    }else if (key == 264 && action == GLFW_PRESS){
+    }else if (key == 263 && action == GLFW_PRESS){
+        storgiSx = true;
+    }else if (key == 262 && action == GLFW_PRESS){
+        storgiDx = true;
+    }
+}
+
+GLFWwindow* window;
+void setup(){    
     if (!glfwInit()) {exit(EXIT_FAILURE);}
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-    GLFWwindow* window = glfwCreateWindow(1000, 1000, "FirstVisualizer2D", NULL, NULL);
+    window = glfwCreateWindow(1000, 1000, "Piano delle Fasi", NULL, NULL);
     glfwMakeContextCurrent(window);
     if (glewInit() != GLEW_OK){exit(EXIT_FAILURE);}
     glfwSwapInterval(1);
-
+    
     init(window);
-    //--------------------------------------
-    Motorcycle m1(1, 1, 5, 10);
-    double T = 0;
-    double t = 0.01;
-    m1.setAs(5);
-    //--------------------------------------
-    while (!glfwWindowShouldClose(window)) {
-        display(window, glfwGetTime());
+    glfwSetKeyCallback(window, key_callback);
+    
+}
+
+int loop(double x, double y){
+    storgiSx = false;
+    storgiDx = false;
+    if (!glfwWindowShouldClose(window)) {
+        display(window, glfwGetTime(), x, y);
         glfwSwapBuffers(window);
         glfwPollEvents();
-        //--------------------------------------
-        XMotorcycle = m1.getX();
-        YMotorcycle = m1.getY();
-        T = T+t;
-        m1.Integrate(t); 
-        //--------------------------------------
+    }else{
+        glfwDestroyWindow(window);
+        glfwTerminate();
+        exit(EXIT_SUCCESS);
     }
-    glfwDestroyWindow(window);
-    glfwTerminate();
-    exit(EXIT_SUCCESS);
+    if (glfwGetKey(window, 262) == GLFW_PRESS){
+        return -1;
+    }else if (glfwGetKey(window, 263) == GLFW_PRESS){
+        return 1;
+    }else{
+        return 0;
+    }
 }

@@ -1,19 +1,34 @@
 #include <iostream>
 #include <math.h>
-#include "Motorcycle.h"
 using namespace std;
+
+#include "Motorcycle.h"
+#include "Grafica.cpp"
 
 
 int main(){
-    Motorcycle m1(1, 1, 5, 10);
+    Motorcycle m1(0.1, 0);
     double T = 0;
     double t = 0.01;
-    m1.setAs(0.4);
-    for (int i=0; i<10; i++){
-        cout << "s[" << T << "]=(" << m1.getX() << ", " << m1.getY() << ")";
-        cout << "v[" << T << "]=(" << m1.getVx() << ", " << m1.getVy() << ")";
-        cout << endl;
+    setup();
+    int storgi = 0;
+    while(true){
+        /*cout << "s[" << T << "]=(" << m1.getX() << ", " << m1.getY() << ")";
+        cout << endl;*/
         T = T+t;
         m1.Integrate(t); 
+        storgi = loop(m1.getX(), m1.getY());
+        if (storgi==-1){
+            m1.storgiDx();
+        }else if (storgi == 1){
+            m1.storgiSx();
+        }
+        if (T>0.2){
+            m1.setMa(0);
+        }
+        /*if ((int)(T) % 10 == 0){
+            cout<<"("<<T<<")\n";
+            m1.print();
+        }*/
     }
 }

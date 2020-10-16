@@ -1,88 +1,72 @@
 #ifndef MOTORCYCLE
 #define MOTORCYCLE
 
+#define INCREEMENTODELTA 0.05
+
 class Motorcycle{
 private:
-double _x;   //x position
-double _y;   //y position
-double _vx = 0;  //x velocity
-double _vy = 0;  //y velocity
-double _ax = 0;  //x accelleration
-double _ay = 0;  //y accelleration
-double _t = 0;   //theta
-double _av = 0;  //angular velocity
-double _aa = 0;  //angular accelleration
-double _a  = 0;   //inclination angle
+double _x = 0;   //x position
+double _y = 0;   //y position
+double _dotx = 0;  //x velocity
+double _doty = 0;  //y velocity
+double _beta = 0; //angle of the velocity from the car assex
+double _delta = 0; //angle of the front wheel from the car assex
+double _psi = 0; //angle of the car assex from the x assex
+double _dotpsi = 0;
 
-double _as = 0;  //accellerator stroke level
-
-double _m;   //mass
-double _r;   //wheel radius
-double _fm;  //motor maximum force
-double _b;   //air friction constant
-
+double _Ma = 0; //Motor accelleration
 public:
-    Motorcycle(double m, double r, double fm, double b, double x=0, double y=0){
-        _x = x;
-        _y = y;
-        _m = m;
-        _r = r;
-        _fm = fm;
-        _b = b;
-    }
-    double calcAngularAccellerationMotorStroke();
-    double calcAngularAccellerationAirFriction();
-    double calcAccellerationLeaning();
+    Motorcycle(double Ma, double delta){_Ma = Ma;_delta = delta;}
+    Motorcycle(){}
+    
     void Integrate(double t);
+    void print();
     
     double getX(){return _x;}
     double getY(){return _y;}
-    double getVx(){return _vx;}
-    double getVy(){return _vy;}
-    double getV(){return sqrt(_vx*_vx + _vy*_vy);}
-    double getAx(){return _ax;}
-    double getAy(){return _ay;}
-    double getT(){return _t;}
-    double getAv(){return _av;}
-    double getAa(){return _aa;}
-    double getA(){return _a;}
-    double getAs(){return _as;}
-    double getM(){return _m;}
-    double getR(){return _r;}
-    double getFm(){return _fm;}
-    double getB(){return _b;}
+    double getPsi(){return _psi;}
+    double getDelta(){return _delta;}
     
-    void setAs(double as){_as = as;}
+    void setMa(double Ma){_Ma = Ma;}
+    void setDelta(double delta){_delta = delta;}
+    
+    void storgiDx(){
+        if (_delta>-1){
+            _delta = _delta - INCREEMENTODELTA;
+        }
+    }
+    void storgiSx(){
+        if (_delta<1){
+            _delta = _delta + INCREEMENTODELTA;
+        }
+    }
 };
 
-double Motorcycle::calcAngularAccellerationMotorStroke(){
-    return (2*_as*_fm)/(_m*_r);
+void Motorcycle::Integrate(double dt){
+    double dotX, dotY;
+    dotX = _dotx*cos(_psi)+_doty*sin(_psi);
+    dotY = _doty*cos(_psi)-_dotx*sin(_psi);
+    dotX = _Ma*dt + dotX;
+    _dotx = dotX*cos(_psi) - dotY*sin(_psi);
+    _doty = dotX*sin(_psi) + dotY*cos(_psi);
+    _beta = atan(tan(_delta)/2);
+    double v = sqrt(_dotx*_dotx + _doty*_doty);
+    _dotpsi = v/0.03*sin(_beta);
+    _psi = _dotpsi*dt + _psi;
+    _dotx = v*cos(_beta+_psi);
+    _doty = v*sin(_beta+_psi);
+    _x = _dotx*dt + _x;
+    _y = _doty*dt + _y;
 }
-double Motorcycle::calcAngularAccellerationAirFriction(){
-    return -(2*_b*getV())/(3*_r*_m);
-}
-double Motorcycle::calcAccellerationLeaning(){
-    return 9.81*sin(_a);
-}
-void Motorcycle::Integrate(double t){
-    _aa = calcAngularAccellerationMotorStroke() + calcAngularAccellerationAirFriction();
-    _av = t*_aa + _av;
-    _t = t*_av + _t;
-    double alpha;
-    if (_vx != 0){
-        alpha = atan(_vy/_vx);
-    }else{
-        alpha = 0; 
-    }
-    double temps = t*_av*_r;
-    double tempx = temps*cos(alpha);
-    double tempy = temps*sin(alpha);
-    _vx = _x - tempx/t;
-    _vy = _y - tempy/t;
-    
-    double trasversalAcc = calcAccellerationLeaning();
-    double tempv = t*trasversalAcc + 
-    _x = tempx;
-    _y = tempy;
+
+void Motorcycle::print(){
+    cout<<"--------------------------"<<endl;
+    cout<<"(X, Y) = ("<<_x<<", "<<_y<<")"<<endl;
+    cout<<"(VX, VY) = ("<<_dotx<<", "<<_doty<<")"<<endl;
+    cout<<"delta = ("<<_delta<<")"<<endl;
+    cout<<"beta = ("<<_beta<<")"<<endl;
+    cout<<"psi = ("<<_psi<<") Vpsi = ("<<_dotpsi<<")"<<endl;
+    cout<<"Ma = ("<<_Ma<<")"<<endl;
+    cout<<"--------------------------"<<endl;
 }
 #endif
