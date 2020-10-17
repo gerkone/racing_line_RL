@@ -7,14 +7,12 @@ using namespace std;
 
 
 int main(){
-    Motorcycle m1(0.1, 0);
+    Motorcycle m1(0.1, 0.3);
     double T = 0;
     double t = 0.01;
     setup();
     int storgi = 0;
     while(true){
-        /*cout << "s[" << T << "]=(" << m1.getX() << ", " << m1.getY() << ")";
-        cout << endl;*/
         T = T+t;
         m1.Integrate(t); 
         storgi = loop(m1.getX(), m1.getY());
@@ -26,9 +24,18 @@ int main(){
         if (T>0.2){
             m1.setMa(0);
         }
-        /*if ((int)(T) % 10 == 0){
-            cout<<"("<<T<<")\n";
-            m1.print();
-        }*/
     }
+    /*for (int i=1; i<10; i++){
+        cout << "s[ " << i << " ] = (" << m1.getX() << ", " << m1.getY() << ")" << endl;
+        m1.Integrate(t);
+        loop(m1.getX(), m1.getY());
+    }
+    m1.setMa(0);
+    m1.setDelta(-0.5);
+    for (int i=1; i<10; i++){
+        cout << "s[ " << i << " ] = (" << m1.getX() << ", " << m1.getY() << ")" << endl;
+        m1.Integrate(t);
+        loop(m1.getX(), m1.getY());
+    }
+    while (true){}*/
 }
