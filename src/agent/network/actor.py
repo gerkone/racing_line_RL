@@ -2,7 +2,7 @@ import numpy as np
 import tensorflow as tf
 
 from tensorflow.keras.models import Model, load_model
-from tensorflow.keras.layers import Dense, Input, BatchNormalization, Activation, Lambda
+from tensorflow.keras.layers import Dense, Input, BatchNormalization, Activation, Multiply
 from tensorflow.keras.initializers import RandomUniform
 from tensorflow.keras.optimizers import Adam
 
@@ -34,6 +34,7 @@ class Actor(object):
         self.optimizer = Adam(self.lr)
 
 
+
     def build_network(self):
         """
         Builds the model. Consists of two fully connected layers with batch norm.
@@ -55,8 +56,7 @@ class Actor(object):
                         kernel_regularizer=tf.keras.regularizers.l2(0.01), name = "Action_out")(fcl2)
         output_layer = Activation("tanh", name = "tanh_out")(output_layer)
         #scale the output (after the activation)
-        output_layer = Lambda(lambda i : i * self.upper_bound, name = "Out_scale")(output_layer)
-        # output_layer =  output_layer * self.upper_bound
+        output_layer = Multiply()([output_layer, tf.ones_like(output_layer) * self.upper_bound])
         model = Model(input_layer, output_layer)
         return model
 

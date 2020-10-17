@@ -39,9 +39,9 @@ class Agent(object):
         # turn off most logging
         logging.getLogger("tensorflow").setLevel(logging.FATAL)
 
-        # date = datetime.now().strftime("%m%d%Y_%H%M%S")
-        # path_actor = "./models/actor/actor" + date + ".h5"
-        # path_critic = "./models/critic/actor" + date + ".h5"
+        date = datetime.now().strftime("%m%d%Y_%H%M%S")
+        self.path_actor = "./models/actor/actor" + date
+        self.path_critic = "./models/critic/actor" + date
 
         # actor class
         self.actor = Actor(state_dims = state_dims, action_dims = action_dims,
@@ -130,3 +130,17 @@ class Agent(object):
         replay buffer interfate to the outsize
         """
         self._memory.remember(state, state_new, action, reward, terminal)
+
+    def save(self):
+        ext = ".h5"
+        self.actor.model.save(self.path_actor + ext)
+        self.critic.model.save(self.path_critic + ext)
+        self.actor.target_model.save(self.path_actor + "_target" + ext)
+        self.critic.target_model.save(self.path_critic + "_target" + ext)
+
+    def load(self):
+        ext = ".h5"
+        self.actor.model.model = tf.keras.models.load_model(self.path_actor + ext)
+        self.critic.model.save = tf.keras.models.load_model(self.path_critic + ext)
+        self.actor.target_model = tf.keras.models.load_model(self.path_actor + "_target" + ext)
+        self.critic.target_model = tf.keras.models.load_model(self.path_critic + "_target" + ext)

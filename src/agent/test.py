@@ -5,9 +5,11 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 
-N_EPISODES = 10000
+N_EPISODES = 1000
+CHECKPOINT = 100
 
 def main():
+    #TODO args to load model
     #get simulation environment
     env = gym.make("Pendulum-v0")
     state_dims = [len(env.observation_space.low)]
@@ -22,7 +24,6 @@ def main():
     np.random.seed(0)
     scores = []
     #training loop: call remember on predicted states and train the models
-    episode = 0
     for i in range(N_EPISODES):
         #get initial state
         state = env.reset()
@@ -31,20 +32,22 @@ def main():
         #proceed until reaching an exit state
         while not terminal:
             #predict new action
-            action = agent.get_action(state, episode)
+            action = agent.get_action(state, i)
             #perform the transition according to the predicted action
             state_new, reward, terminal, info = env.step(action)
             #store the transaction in the memory
             agent.remember(state, state_new, action, reward, terminal)
             #adjust the weights according to the new transaction
-            agent.learn(episode)
+            agent.learn(i)
             #iterate to the next state
             state = state_new
             score += reward
             env.render()
         scores.append(score)
         print("Iteration {:d} --> score {:.2f}. Running average {:.2f}".format( i, score, np.mean(scores)))
-        episode += 1
+        if i % CHECKPOINT:
+            agent.save()
+
     plt.plot(scores)
     plt.xlabel("Episode")
     plt.ylabel("Cumulate reward")
