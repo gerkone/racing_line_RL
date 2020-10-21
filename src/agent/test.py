@@ -45,8 +45,8 @@ def main():
             env.render()
         scores.append(score)
         print("Iteration {:d} --> score {:.2f}. Running average {:.2f}".format( i, score, np.mean(scores)))
-        if i % CHECKPOINT:
-            agent.save()
+        # if i % CHECKPOINT:
+        #     agent.save()
 
     plt.plot(scores)
     plt.xlabel("Episode")
