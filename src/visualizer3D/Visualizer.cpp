@@ -14,9 +14,11 @@
 using namespace std;
 #define numVAOs 1
 #define numVBOs 2
+#define INTERVALLOTEMPODATI 0.000001
 
 float cameraX , cameraY, cameraZ;
-float cubeLocX, cubeLocY, cubeLocZ;
+float carLocX, carLocY, carphi;
+int carposindex = 0;
 GLuint renderingProgram; //GLuint è una shortcat per unsigned int
 GLuint vao[numVAOs];
 GLuint vbo[numVBOs];
@@ -67,8 +69,8 @@ void setupVertices(void){
 
 void init (GLFWwindow* window){
     renderingProgram = createShaderProgram((char *)"./BlenderImport/vertShader.glsl",(char *) "./BlenderImport/fragShader.glsl");
-    cameraX = 0.0f; cameraY = 0.0f; cameraZ = 10.0f;
-    cubeLocX = 0.0f; cubeLocY = -4.0f; cubeLocZ = -4.0f;
+    cameraX = 0.0f; cameraY = 0.0f; cameraZ = 2.0f;
+    //cubeLocX = 0.0f; cubeLocY = -4.0f; cubeLocZ = -4.0f;
     setupVertices();
 }
 
@@ -89,9 +91,11 @@ void display (GLFWwindow* window, double currentTime){
 
     //Costruisco la mvMat
     vMat = glm::translate(glm::mat4(1.0f), glm::vec3(-cameraX, -cameraY, -cameraZ));
-    mMat = glm::translate(glm::mat4(1.0f), glm::vec3(cubeLocX, cubeLocY, cubeLocZ));
-    mMat = glm::scale(mMat, glm::vec3( 0.01f, 0.01f, 0.01f ));
-    mMat = glm::rotate(mMat, 1.75f*(float)currentTime, glm::vec3(0.0f, 1.0f, 0.0f));
+    vMat = glm::rotate(vMat, 1.57079633f/2, glm::vec3(1.0f, 0.0f, 0.0f));
+    mMat = glm::scale(glm::mat4(1.0f), glm::vec3( 0.005f, 0.005f, 0.005f ));
+    mMat = glm::translate(mMat, glm::vec3(carLocX, 0, carLocY));
+    mMat = glm::rotate(mMat, carphi+1.57079633f, glm::vec3(0.0f, 1.0f, 0.0f));
+    //mMat = glm::rotate(mMat, 1.75f*(float)currentTime, glm::vec3(0.0f, 1.0f, 0.0f));
     mvMat = vMat * mMat;
 
     //Spedisco matrici allo shader
@@ -108,16 +112,29 @@ void display (GLFWwindow* window, double currentTime){
 }
 
 int main(){
-    cout<<"Leggo File..."<<endl;
+    //cout<<"Leggo File..."<<endl;
     ifstream fileStream("./PositionData.dat", ios::in);
     string line;
+    getline(fileStream, line);
+    getline(fileStream, line);
+    vector<glm::vec3> carpos;
     while (!fileStream.eof()){
+        int posx = line.find("_");
+        string x = line.substr(0, posx);
+        int posy = line.find("_", posx+1);
+        string y = line.substr(posx+1,posy-posx-1);
+        int posphi = line.find("_", posy+1);
+        string phi = line.substr(posy+1, posphi-posy-1);
+        //cout << line << endl;
+        //cout << posx << "; " << posy << "; " << posphi << endl;
+        //cout << x << ";" << y << ";" << phi << ";" << endl;
+        carpos.push_back(glm::vec3( stod(x), stod(y), stod(phi)));
         getline(fileStream, line);
-        int pos = line.find("\t");
-        string x = line.substr(0,pos);
-        //CONTINUAAAAAAAA
     }
-    cout<<"Lancio Programma..."<<endl;
+    /*for (int i=0; i<carpos.size(); i++){
+      cout << carpos[i].x << ";" << carpos[i].y << ";" << carpos[i].z << ";" << endl;
+    }*/
+    //cout<<"Lancio Programma..."<<endl;
     if (!glfwInit()) {exit(EXIT_FAILURE);}
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
@@ -127,9 +144,28 @@ int main(){
     glfwSwapInterval(1);
 
     init(window);
-
+    double oldTime = 0;
+    double currentTime = 0;
+    if (carpos.size()>0){
+      carLocX = carpos[0].x;
+      carLocY = carpos[0].y;
+      carphi = carpos[0].z;
+    }
     while (!glfwWindowShouldClose(window)) {
-        display(window, glfwGetTime());
+        oldTime = currentTime;
+        currentTime = glfwGetTime();
+        if (currentTime - oldTime > INTERVALLOTEMPODATI){
+          //cout << currentTime << endl;
+          if (carpos.size()>carposindex){
+            carLocX = carpos[carposindex].x;
+            carLocY = carpos[carposindex].y;
+            carphi = carpos[carposindex].z;
+            carposindex++;
+          }else{
+            carposindex = 0;
+          }
+        }
+        display(window, currentTime);
         glfwSwapBuffers(window);
         glfwPollEvents();
     }

@@ -64,7 +64,6 @@ class TrackEnvironment(object):
         self.n_states = 6
         self.n_actions = 2
         self.action_boundaries = [[-1,1], [-1,1]]#[Freno/acceleratore], [Sterzo]
-
         # self.track # array of points
         self.width = 5
 
@@ -103,7 +102,8 @@ class TrackEnvironment(object):
         reward = self._reward(terminal)
         return state_new, reward, terminal
 
-    # def render():
+    #def render():
+        
 
 
 a = TrackEnvironment()
