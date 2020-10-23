@@ -12,8 +12,8 @@
 #include "./BlenderImport/ImportedModel.cpp"
 
 using namespace std;
-#define numVAOs 1
-#define numVBOs 2
+#define numVAOs 2
+#define numVBOs 3
 #define INTERVALLOTEMPODATI 0.000001
 
 float cameraX , cameraY, cameraZ;
@@ -21,20 +21,22 @@ float carLocX, carLocY, carphi;
 int carposindex = 0;
 GLuint renderingProgram; //GLuint è una shortcat per unsigned int
 GLuint vao[numVAOs];
-GLuint vbo[numVBOs];
+GLuint vbo0[numVBOs];
+GLuint vbo1[numVBOs];
 
 GLuint mvLoc, projLoc;
 int width, height;
 float aspect;
 glm::mat4 pMat, vMat, mMat, mvMat;
 
-ImportedModel cube("./BlenderImport/Carrozzeria.obj");
+ImportedModel carrozzeria("./BlenderImport/Carrozzeria.obj");
+ImportedModel ruotadx("./BlenderImport/Ruota.obj");
 
-void setupVertices(void){
-    std::vector<glm::vec3> vert = cube.getVertices();
-    std::vector<glm::vec2> tex = cube.getTextCoords();
-    std::vector<glm::vec3> norm = cube.getNormalVecs();
-    int numObjVertices = cube.getNumVertices();
+void setupCarrozzeriaVertices(void){
+    std::vector<glm::vec3> vert = carrozzeria.getVertices();
+    std::vector<glm::vec2> tex = carrozzeria.getTextCoords();
+    std::vector<glm::vec3> norm = carrozzeria.getNormalVecs();
+    int numObjVertices = carrozzeria.getNumVertices();
 
     std::vector<float> pvalues; //vertex positions
     std::vector<float> tvalues; //texture coordinates
@@ -50,27 +52,70 @@ void setupVertices(void){
         nvalues.push_back((norm[i]).y);
         nvalues.push_back((norm[i]).z);
     }
-    glGenVertexArrays(1, vao);
     glBindVertexArray(vao[0]);
-    glGenBuffers(numVBOs, vbo);
+    glGenBuffers(numVBOs, vbo0);
 
     //VBO for vertex location
-    glBindBuffer(GL_ARRAY_BUFFER, vbo[0]);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo0[0]);
     glBufferData(GL_ARRAY_BUFFER, pvalues.size()*4, &pvalues[0], GL_STATIC_DRAW);
 
     //VBO for texture coordinates
-    glBindBuffer(GL_ARRAY_BUFFER, vbo[1]);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo0[1]);
     glBufferData(GL_ARRAY_BUFFER, tvalues.size()*4, &tvalues[0], GL_STATIC_DRAW);
 
     //VBO for normal vectors
-    glBindBuffer(GL_ARRAY_BUFFER, vbo[2]);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo0[2]);
     glBufferData(GL_ARRAY_BUFFER, nvalues.size()*4, &nvalues[0], GL_STATIC_DRAW);
+
+}
+
+void setupWheelVertices(void){
+    std::vector<glm::vec3> vert = ruotadx.getVertices();
+    std::vector<glm::vec2> tex = ruotadx.getTextCoords();
+    std::vector<glm::vec3> norm = ruotadx.getNormalVecs();
+    int numObjVertices = ruotadx.getNumVertices();
+
+    std::vector<float> pvalues; //vertex positions
+    std::vector<float> tvalues; //texture coordinates
+    std::vector<float> nvalues; //normal vectors
+
+    for (int i=0; i<numObjVertices; i++){
+        pvalues.push_back((vert[i]).x);
+        pvalues.push_back((vert[i]).y);
+        pvalues.push_back((vert[i]).z);
+        tvalues.push_back((tex[i]).s);
+        tvalues.push_back((tex[i]).t);
+        nvalues.push_back((norm[i]).x);
+        nvalues.push_back((norm[i]).y);
+        nvalues.push_back((norm[i]).z);
+    }
+    glBindVertexArray(vao[1]);
+    glGenBuffers(numVBOs, vbo1);
+
+    //VBO for vertex location
+    glBindBuffer(GL_ARRAY_BUFFER, vbo1[0]);
+    glBufferData(GL_ARRAY_BUFFER, pvalues.size()*4, &pvalues[0], GL_STATIC_DRAW);
+
+    //VBO for texture coordinates
+    glBindBuffer(GL_ARRAY_BUFFER, vbo1[1]);
+    glBufferData(GL_ARRAY_BUFFER, tvalues.size()*4, &tvalues[0], GL_STATIC_DRAW);
+
+    //VBO for normal vectors
+    glBindBuffer(GL_ARRAY_BUFFER, vbo1[2]);
+    glBufferData(GL_ARRAY_BUFFER, nvalues.size()*4, &nvalues[0], GL_STATIC_DRAW);
+
+    glBindVertexArray(0);
+}
+
+void setupVertices(void){
+    glGenVertexArrays(numVAOs, vao);
+    setupWheelVertices();
+    setupCarrozzeriaVertices();
 }
 
 void init (GLFWwindow* window){
     renderingProgram = createShaderProgram((char *)"./BlenderImport/vertShader.glsl",(char *) "./BlenderImport/fragShader.glsl");
     cameraX = 0.0f; cameraY = 0.0f; cameraZ = 2.0f;
-    //cubeLocX = 0.0f; cubeLocY = -4.0f; cubeLocZ = -4.0f;
     setupVertices();
 }
 
@@ -103,12 +148,33 @@ void display (GLFWwindow* window, double currentTime){
     glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(pMat));
 
     //Associazione VBO
-    glBindBuffer(GL_ARRAY_BUFFER, vbo[0]);
+    glBindVertexArray(vao[0]);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo0[0]);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
     glEnableVertexAttribArray(0);
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LEQUAL);
-    glDrawArrays(GL_TRIANGLES, 0, cube.getNumVertices());
+    //glDrawArrays(GL_TRIANGLES, 0, carrozzeria.getNumVertices());
+
+    mMat = glm::scale(glm::mat4(1.0f), glm::vec3( 0.005f, 0.005f, 0.005f ));
+    //NONFUNZIONAAAAAAAAAAAAAAAAAA
+    //mMat = glm::rotate(mMat, cos((float)currentTime), glm::vec3(+cos(carphi+1.57079633f), 0, -sin(carphi+1.57079633f)));
+    mMat = glm::translate(mMat, glm::vec3(carLocX+130*sin(carphi+1.57079633f)-85*cos(carphi+1.57079633f), 30, carLocY+130*cos(carphi+1.57079633f)+85*sin(carphi+1.57079633f)));
+    mMat = glm::rotate(mMat, carphi+1.57079633f, glm::vec3(0.0f, 1.0f, 0.0f));
+    mvMat = vMat * mMat;
+
+    //Spedisco matrici allo shader
+    glUniformMatrix4fv(mvLoc, 1, GL_FALSE, glm::value_ptr(mvMat));
+    glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(pMat));
+
+    //Associazione VBO
+    glBindVertexArray(vao[1]);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo1[0]);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
+    glEnableVertexAttribArray(0);
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LEQUAL);
+    glDrawArrays(GL_TRIANGLES, 0, ruotadx.getNumVertices());
 }
 
 int main(){
@@ -138,7 +204,7 @@ int main(){
     if (!glfwInit()) {exit(EXIT_FAILURE);}
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-    GLFWwindow* window = glfwCreateWindow(600, 600, "22_ImportCube", NULL, NULL);
+    GLFWwindow* window = glfwCreateWindow(1000, 1000, "FirstCar", NULL, NULL);
     glfwMakeContextCurrent(window);
     if (glewInit() != GLEW_OK){exit(EXIT_FAILURE);}
     glfwSwapInterval(1);
@@ -165,6 +231,7 @@ int main(){
             carposindex = 0;
           }
         }
+        carphi = cos(float(currentTime));
         display(window, currentTime);
         glfwSwapBuffers(window);
         glfwPollEvents();
