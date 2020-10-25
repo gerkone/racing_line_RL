@@ -19,9 +19,10 @@ private:
     double x = firstPoint.y - secondPoint.y;
     double y = -firstPoint.x + secondPoint.x;
     double modules = sqrt(x*x+y*y);
-    if (modules!=0){
+    if (modules>0.0001){
       return glm::vec3(x/modules, y/modules, 0);
     }else{
+      //cout << "Bad news!" << " X_1= " << firstPoint.x << " X_2= " << secondPoint.x << " Y_1= " << firstPoint.y << " Y_2= " << secondPoint.y <<"\n";
       return glm::vec3(0, 0, 0);
     }
   }
@@ -36,12 +37,21 @@ public:
     string line;
     getline(fileStream, line);
     getline(fileStream, line);
+    double oldx=0, oldy=0;
+    string x="-10000000";
+    string y="-10000000";
     while (!fileStream.eof()){
         int posx = line.find("_");
-        string x = line.substr(0, posx);
-        string y = line.substr(posx+1);
+        oldx = stod(x);
+        oldy = stod(y);
+        x = line.substr(0, posx);
+        y = line.substr(posx+1);
         glm::vec3 point(stod(x), stod(y), 0);
-        points.push_back(point);
+        if (!(abs(point.x-oldx)<0.0001 && abs(point.y-oldy)<0.0001)){
+          points.push_back(point);
+        }else{
+          //cout << "Tolto!" << endl;
+        }
         getline(fileStream, line);
     }
     /*for (int i=0; i<points.size()-1; i++){
@@ -88,7 +98,7 @@ public:
     normals.push_back(calcNormal(points[0], points[1]));
     for (int i=0; i<points.size()-2; i++){
         normals.push_back(calcNormal(points[i+1], points[i+2]));
-
+        //cout << "[" << normals[i].x << "; "<< normals[i].y << "]\n";
         //first triangle
         addPointToVertices(points[i]-normals[i]*width);
         addPointToVertices(points[i]+normals[i]*width);
