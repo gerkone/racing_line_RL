@@ -106,6 +106,6 @@ public:
     return vert;
   }
   int getNumOfVertices(){
-    return vertices.size()*3*3;
+    return vertices.size();
   }
 };

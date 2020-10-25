@@ -14,7 +14,7 @@ using namespace std;
 
 #define numVAOs 1
 #define numVBOs 2
-#define SCALE 0.1f
+#define SCALE 0.1f //bigger means bigger
 //VAO = Vertex Array Objects
 //VBO = Vertex Buffer Objects
 
@@ -52,7 +52,7 @@ void setupVertices(){
     glGenBuffers(numVBOs, vbo);
 
     glBindBuffer(GL_ARRAY_BUFFER, vbo[0]);
-    glBufferData(GL_ARRAY_BUFFER, NumOfVertices, vertices, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(float)*NumOfVertices, vertices, GL_STATIC_DRAW);
 }
 
 void init (GLFWwindow* window){
@@ -109,11 +109,6 @@ int main(void){
     NumOfVertices = TD.getNumOfVertices();
     cout << NumOfVertices << endl;
     init(window);
-
-    for (int i=0; i<6*3*3; i++){
-      cout << vertices[i] <<endl;
-    }
-
     while (!glfwWindowShouldClose(window)) {
         display(window, glfwGetTime());
         glfwSwapBuffers(window);
