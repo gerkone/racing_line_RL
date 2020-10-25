@@ -14,7 +14,7 @@ using namespace std;
 
 #define numVAOs 1
 #define numVBOs 2
-#define SCALE 0.1f //bigger means bigger
+#define SCALE 2.0f //bigger means bigger
 //VAO = Vertex Array Objects
 //VBO = Vertex Buffer Objects
 

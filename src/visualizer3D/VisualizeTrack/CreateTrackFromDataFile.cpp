@@ -25,6 +25,11 @@ private:
       return glm::vec3(0, 0, 0);
     }
   }
+  void addPointToVertices(glm::vec3 point){
+    vertices.push_back(point.x);
+    vertices.push_back(point.y);
+    vertices.push_back(point.z);
+  }
 public:
   TrackData(string fileName, float width){
     ifstream fileStream(fileName, ios::in);
@@ -39,7 +44,7 @@ public:
         points.push_back(point);
         getline(fileStream, line);
     }
-    for (int i=0; i<points.size()-1; i++){
+    /*for (int i=0; i<points.size()-1; i++){
       //Normal calculation
       normals.push_back(calcNormal(points[i], points[i+1]));
       //Vertex calculation
@@ -79,7 +84,41 @@ public:
     vertices.push_back((points[points.size()-1]-normals[0]*width).z);
     vertices.push_back((points[0]-normals[0]*width).x);
     vertices.push_back((points[0]-normals[0]*width).y);
-    vertices.push_back((points[0]-normals[0]*width).z);
+    vertices.push_back((points[0]-normals[0]*width).z);*/
+    normals.push_back(calcNormal(points[0], points[1]));
+    for (int i=0; i<points.size()-2; i++){
+        normals.push_back(calcNormal(points[i+1], points[i+2]));
+
+        //first triangle
+        addPointToVertices(points[i]-normals[i]*width);
+        addPointToVertices(points[i]+normals[i]*width);
+        addPointToVertices(points[i+1]+normals[i+1]*width);
+
+        //second triangle
+        addPointToVertices(points[i+1]+normals[i+1]*width);
+        addPointToVertices(points[i+1]-normals[i+1]*width);
+        addPointToVertices(points[i]-normals[i]*width);
+    }
+    normals.push_back(calcNormal(points[points.size()-2], points[points.size()-1]));
+    //first triangle
+    addPointToVertices(points[points.size()-2]-normals[points.size()-2]*width);
+    addPointToVertices(points[points.size()-2]+normals[points.size()-2]*width);
+    addPointToVertices(points[points.size()-1]+normals[points.size()-1]*width);
+
+    //second triangle
+    addPointToVertices(points[points.size()-1]+normals[points.size()-1]*width);
+    addPointToVertices(points[points.size()-1]-normals[points.size()-1]*width);
+    addPointToVertices(points[points.size()-2]-normals[points.size()-2]*width);
+
+    //first triangle
+    addPointToVertices(points[points.size()-1]-normals[points.size()-2]*width);
+    addPointToVertices(points[points.size()-1]+normals[points.size()-2]*width);
+    addPointToVertices(points[0]+normals[0]*width);
+
+    //second triangle
+    addPointToVertices(points[0]+normals[0]*width);
+    addPointToVertices(points[0]-normals[0]*width);
+    addPointToVertices(points[points.size()-1]-normals[points.size()-2]*width);
     /*cout << "(";
     for (int i=0; i<vertices.size(); i++){
       cout << vertices[i];
