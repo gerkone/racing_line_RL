@@ -290,7 +290,7 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
     if (glfwGetKey(window, 65) == GLFW_PRESS){//A
         sterzo+=PASSOSTERZO;
     }
-    if (glfwGetKey(window, 68) == GLFW_PRESS){//A
+    if (glfwGetKey(window, 68) == GLFW_PRESS){//D
         sterzo-=PASSOSTERZO;
     }
     if (glfwGetKey(window, 90) == GLFW_PRESS){//Z
