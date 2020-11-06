@@ -1,0 +1,2 @@
+#!/bin/bash
+g++ $1 -o run -lglfw3 -pthread -ldl -lGLU -lGL -lrt -lXrandr -lXxf86vm -lXi -lXinerama -lX11 -lGLEW
