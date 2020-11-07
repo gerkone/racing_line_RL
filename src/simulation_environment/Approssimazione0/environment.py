@@ -4,66 +4,7 @@ from scipy.spatial import Delaunay
 import time
 import zmq
 
-
-class Vehicle(object):
-    def __init__(self, maxMa=1, maxDelta=1):
-        self._x = 0     #x position
-        self._y = 0     #y positionx
-        self._dotx = 0  #x velocity
-        self._doty = 0  #y velocity
-        self._beta = 0  #angle of the velocity from the car assex
-        self._delta = 0 #angle of the front wheel from the car assex
-        self._psi = 0   #angle of the car assex from the x assex
-        self._dotpsi = 0
-        self._Ma = 0    #Motor accelleration
-        self.Vx = 0
-        self.Vy = 0
-        self.maxMa = maxMadis
-        self.maxDelta = maxDelta
-
-    #Mettere a posto
-    def integrate(self, dt):
-        self.Vx = self._dotx*cos(self._psi)+self._doty*sin(self._psi)
-        self.Vy = self._doty*cos(self._psi)-self._dotx*sin(self._psi)
-        self.Vx = self._Ma*dt + self.Vx
-        self._dotx = self.Vx*cos(self._psi) - self.Vy*sin(self._psi)
-        self._doty = self.Vx*sin(self._psi) + self.Vy*cos(self._psi)
-        self._beta = atan(tan(self._delta)/2)
-        v = sqrt(self._dotx*self._dotx + self._doty*self._doty)
-        self._dotpsi = v/0.03*sin(self._beta)
-        self._psi = self._dotpsi*dt + self._psi
-        self._dotx = v*cos(self._beta+self._psi)
-        self._doty = v*sin(self._beta+self._psi)
-        self._x = self._dotx*dt + self._x
-        self._y = self._doty*dt + self._y
-
-    def setAcceleration(self, MaCoff):          #MaCoff is a value between -1 and 1
-        if MaCoff>1:
-            MaCoff = 1
-        elif MaCoff<-1:
-            MaCoff = -1
-        self._Ma = MaCoff*self.maxMa
-
-    def setSteering(self, deltaCoff):    #deltaCoff is a value between -1 and 1
-        if deltaCoff>1:
-            deltaCoff = 1
-        elif deltaCoff<-1:
-            deltaCoff = -1
-        self._delta = deltaCoff*self.maxDelta
-
-    def getVelocities(self):
-        return [self.Vx, self.Vy]
-
-    def getPosition(self):
-        return [self._x, self._y]
-
-    def getAngles(self):
-        return [self._psi, self._delta]
-
-    def reset(self, x0, y0):
-        self._x = x0;
-        self._y = y0;
-
+from model import Vehicle
 
 class TrackEnvironment(object):
     """
