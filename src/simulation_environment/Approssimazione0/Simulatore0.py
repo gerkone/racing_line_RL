@@ -18,7 +18,7 @@ class Vehicle(object):
         self._Ma = 0    #Motor accelleration
         self.Vx = 0
         self.Vy = 0
-        self.maxMa = maxMa
+        self.maxMa = maxMadis
         self.maxDelta = maxDelta
 
     #Mettere a posto
