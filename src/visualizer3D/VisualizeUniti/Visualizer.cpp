@@ -484,11 +484,16 @@ int main(void){
         string data = reply.to_string();
         // deserialize data string
         // formatted as {x}/{y}/{car_angle}/{front_tyres_angle}
+        size_t pos = 0;
         vector<double> values;
-        while(getline(data, value, '/'))
-        {
-           values.push_back(stod(value));
+        string token;
+        while ((pos = data.find("/")) != string::npos) {
+          token = s.substr(0, pos);
+          values.push_back(stod(token));
+          data.erase(0, pos + 1);
         }
+        values.push_back(stod(data));
+        
         carLocX = values.at(0);
         carLocY = values.at(1);
         carphi = values.at(2) + M_PI/2;
