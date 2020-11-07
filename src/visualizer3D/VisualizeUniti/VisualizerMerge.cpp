@@ -3,7 +3,6 @@
 #include <string>
 #include <iostream>
 #include <fstream>
-#include <zmq.hpp>
 #include <cmath>
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -73,7 +72,6 @@ Car car(0, 0);
 glm::vec3 rotate(float, float, float, glm::vec3, float);
 void displayTrack(GLFWwindow*, double);
 void displayCar(GLFWwindow*, double);
-vector<double> subtringSochetOutput(string);
 
 void setupCarrozzeriaVertices(void){
     std::vector<glm::vec3> vert = carrozzeria.getVertices();
@@ -343,6 +341,7 @@ void displayCar(GLFWwindow* window, double currentTime){
   mvStack.pop();
   mvStack.pop();
 }
+
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods){
     //cout<<"KEY:"<<key<<" - "<<glfwGetKeyScancode(key)<<endl;
     /*FrecciaSu : 265
@@ -465,40 +464,17 @@ int main(void){
     mouseblocked=true;
     glfwSetWindowSizeCallback(window, window_size_callback);
 
-    // initialize the zmq context with a single IO thread
-    zmq::context_t context{1};
-    // construct a REQ (request) socket and connect to interface
-    zmq::socket_t socket{context, zmq::socket_type::req};
-    socket.connect("tcp://localhost:5555");
-
-    const std::string ack{"ACK"};
-    zmq::message_t reply{};
 
     while (!glfwWindowShouldClose(window)) {
         display(window, glfwGetTime());
         glfwSwapBuffers(window);
         glfwPollEvents();
         //SIMULAZIONE
-        // ready
-        socket.send(zmq::buffer(ack), zmq::send_flags::none);
-        socket.recv(reply, zmq::recv_flags::none);
-        string data = reply.to_string();
-        // deserialize data string
-        // formatted as {x}/{y}/{car_angle}/{front_tyres_angle}
-        vector<double> values;
-        values = subtringSochetOutput(data);
-
-        carLocX = values.at(0);
-        carLocY = -values.at(1);
-        carphi = values.at(2) + M_PI/2;
-        sterzo = values.at(3);
-
-        // carLocX = car.getX();
-        // carLocY = -car.getY();
-        // carphi = car.getPsi()+M_PI/2;
-        // sterzo = car.getDelta();
-        // car.Integrate(DELTAT);
-
+        carLocX = car.getX();
+        carLocY = -car.getY();
+        carphi = car.getPsi()+M_PI/2;
+        sterzo = car.getDelta();
+        car.Integrate(DELTAT);
     }
     glfwDestroyWindow(window);
     glfwTerminate();
@@ -510,24 +486,4 @@ glm::vec3 rotate(float x, float y, float z, glm::vec3 vec, float T){
                     x*y*(1-cos(T))+z*sin(T),  y*y+(1-y*y)*cos(T),       y*z*(1-cos(T))-x*sin(T),
                     x*z*(1-cos(T))-y*sin(T),  y*z*(1-cos(T))+x*sin(T),  z*z+(1-z*z)*cos(T)
                   )*vec;
-}
-
-vector<double> subtringSochetOutput(string str){
-  vector<double> values;
-  size_t pos;
-  bool esci = false;
-  //cout << "Stringa: " << str << endl;
-  while (!esci){
-    pos = str.find("/");
-    if (pos == string::npos){
-      esci = true;
-      values.push_back(stod(str.substr(0)));
-      str = "";
-    }else{
-      values.push_back(stod(str.substr(0, pos)));
-      str = str.substr(pos+1);
-    }
-    //cout << "Stringa: " << str << endl;
-  }
-  return values;
 }
