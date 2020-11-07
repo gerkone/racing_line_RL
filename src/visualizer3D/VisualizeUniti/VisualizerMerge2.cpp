@@ -487,10 +487,7 @@ int main(void){
         // formatted as {x}/{y}/{car_angle}/{front_tyres_angle}
         size_t pos = 0;
         vector<double> values;
-<<<<<<< HEAD
         values = subtringSochetOutput(data);
-
-=======
         string token;
         while ((pos = data.find("/")) != string::npos) {
           token = s.substr(0, pos);
@@ -498,8 +495,6 @@ int main(void){
           data.erase(0, pos + 1);
         }
         values.push_back(stod(data));
-        
->>>>>>> 724bde24150af8075fe3632bb726c8ea8d7a8b4c
         carLocX = values.at(0);
         carLocY = -values.at(1);
         carphi = values.at(2) + M_PI/2;
