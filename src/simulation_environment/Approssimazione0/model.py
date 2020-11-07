@@ -66,9 +66,10 @@ class Vehicle(object):
     def getAngles(self):
         return [self._psi, self._delta]
 
-    def reset(self, x0, y0):
+    def reset(self, x0, y0, psi0):
         self._x = x0;
         self._y = y0;
+        self._psi = psi0
 
     def CalcPacejkaFront(self):
         B = 10  #10 Dry, 12 Wet, 5 Snow, 4 Ice

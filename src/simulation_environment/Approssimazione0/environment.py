@@ -2,7 +2,6 @@ from math import cos, sin, atan, tan, sqrt, floor
 import numpy as np
 from scipy.spatial import Delaunay
 import time
-import zmq
 
 from model import Vehicle
 
@@ -20,7 +19,7 @@ class TrackEnvironment(object):
     [0] combined Throttle/Break
     [1] steering
     """
-    def __init__(self, dt = 0.01, maxMa=1, maxDelta=1, sections=100):
+    def __init__(self, dt = 0.01, maxMa=1, maxDelta=1, sections=100, render = True):
         self.car = Vehicle(maxMa, maxDelta)
         self.dt = dt
         self.n_states = 6
@@ -41,9 +40,15 @@ class TrackEnvironment(object):
         for track_index, q in enumerate(self._track):
             self._section_mapping[self._sectionMapper(q)].append(track_index)
         # message passing connetion
-        context = zmq.Context()
-        self._socket = context.socket(zmq.REP)
-        self._socket.bind("tcp://*:55555")
+        self._render = render
+        if render:
+            import zmq
+            context = zmq.Context()
+            self._socket = context.socket(zmq.REP)
+            self._socket.bind("tcp://*:55555")
+            # TODO fork visualizer
+            # wait for visualizer client ack
+            self._socket.recv()
 
     def _sectionMapper(self, q):
         """
@@ -65,6 +70,9 @@ class TrackEnvironment(object):
         """
         carpos = self.car.getPosition()
         return sqrt(pow(carpos[0] - q_track[0], 2) + pow(carpos[1] - q_track[1], 2))
+
+    def _angle2points(self, q1, q2):
+        return atan((q2[1] - q1[1]) / (q2[0] - q1[0]))
 
     def _inTrack(self, q):
         """
@@ -94,8 +102,9 @@ class TrackEnvironment(object):
             d_sx = d + self.width
 
         q2 = self._track[nearest_point_index]
-        q1 = self._track[(nearest_point_index - 1) % len(self._track)]
-        track_angle = atan((q2[1] - q1[1]) / (q2[0] - q1[0]))
+        # take a couple of points before to avoid superposition
+        q1 = self._track[(nearest_point_index - 3) % len(self._track)]
+        track_angle = self._angle2points(q1, q2)
         angle = self.car.getAngles()[0] - track_angle
         return (d_sx, d_dx, 0, angle)
 
@@ -148,20 +157,29 @@ class TrackEnvironment(object):
         """
         set the car on the starting line
         """
-        self.car.reset(self._track[0][0], self._track[0][1])
+        q1 = self._track[0]
+        # take a couple of points after to avoid superposition
+        q2 = self._track[3]
+        track_angle = self._angle2points(q1, q2)
+        self.car.reset(0, 0, track_angle)
 
     def render(self):
         """
         send data to the 3D visualizer to render the current state
         """
-        # wait for renderer ready
-        self._socket.recv()
-        # send data to client as / separed list
-        # formatted as {x}/{y}/{car_angle}/{front_tyres_angle}
-        data = self.car.getPosition()[1] + "/" + self.car.getPosition()[1] + "/" + self.car.getAngles()[0] + "/" + self.car.getAngles()[1]
-        self._socket.send_string(data)
+        if self._render:
+            # wait for renderer ready
+            # send data to client as / separed list
+            # formatted as {x}/{y}/{car_angle}/{front_tyres_angle}
+            carpos = self.car.getPosition()
+            carangles = self.car.getAngles()
+            data = "{}/{}/{}/{}".format(carpos[0], carpos[1], carangles[0], carangles[1])
+            self._socket.send_string(data)
+            # wait for confirmation
+            self._socket.recv()
 
 o = TrackEnvironment()
-o.reset()
-o.step([0,0])
-o.render()
+while True:
+    o.reset()
+    # o.step([0,0])
+    o.render()

@@ -468,42 +468,44 @@ int main(void){
     zmq::context_t context{1};
     // construct a REQ (request) socket and connect to interface
     zmq::socket_t socket{context, zmq::socket_type::req};
-    socket.connect("tcp://localhost:5555");
+    socket.connect("tcp://localhost:55555");
 
-    const std::string ack{"ACK"};
+    const string ack{"ACK"};
     zmq::message_t reply{};
+
+    // visualizer ready
+    socket.send(zmq::buffer(ack), zmq::send_flags::none);
 
     while (!glfwWindowShouldClose(window)) {
         display(window, glfwGetTime());
         glfwSwapBuffers(window);
         glfwPollEvents();
         //SIMULAZIONE
-        // ready
-        socket.send(zmq::buffer(ack), zmq::send_flags::none);
         socket.recv(reply, zmq::recv_flags::none);
         string data = reply.to_string();
+
         // deserialize data string
         // formatted as {x}/{y}/{car_angle}/{front_tyres_angle}
         size_t pos = 0;
         vector<double> values;
         string token;
         while ((pos = data.find("/")) != string::npos) {
-          token = s.substr(0, pos);
+          token = data.substr(0, pos);
           values.push_back(stod(token));
           data.erase(0, pos + 1);
         }
         values.push_back(stod(data));
-        
+
+        // update environment variables
+        // TODO CORREGGERE SISTEMA COORDINATE
         carLocX = values.at(0);
         carLocY = values.at(1);
-        carphi = values.at(2) + M_PI/2;
+        carphi = values.at(2);
         sterzo = values.at(3);
+        cout << carLocX << ", " << carLocY << ", " << carphi << ", " << sterzo << endl;
 
-        // carLocX = car.getX();
-        // carLocY = -car.getY();
-        // carphi = car.getPsi()+M_PI/2;
-        // sterzo = car.getDelta();
-        // car.Integrate(DELTAT);
+        // send confirmation
+        socket.send(zmq::buffer(ack), zmq::send_flags::none);
 
     }
     glfwDestroyWindow(window);
