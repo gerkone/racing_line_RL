@@ -488,13 +488,6 @@ int main(void){
         size_t pos = 0;
         vector<double> values;
         values = subtringSochetOutput(data);
-        string token;
-        while ((pos = data.find("/")) != string::npos) {
-          token = s.substr(0, pos);
-          values.push_back(stod(token));
-          data.erase(0, pos + 1);
-        }
-        values.push_back(stod(data));
         carLocX = values.at(0);
         carLocY = -values.at(1);
         carphi = values.at(2) + M_PI/2;
