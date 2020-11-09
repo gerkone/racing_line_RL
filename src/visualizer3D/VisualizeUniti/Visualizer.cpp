@@ -198,8 +198,8 @@ void displayTrack(GLFWwindow* window, double currentTime){
 
   //Costruisco la mvMat
   vMat = glm::lookAt(glm::vec3(cameraX, cameraY, cameraZ), glm::vec3(cameraX+lookingDirX, cameraY+lookingDirY, cameraZ+lookingDirZ), glm::vec3(0.0f, 1.0f, 0.0f));
-  mMat = glm::rotate(glm::mat4(1.0f), (float)(M_PI/2), glm::vec3(0.0f, 1.0f, 0.0f));
-  mMat = glm::rotate(mMat, (float)(M_PI/2), glm::vec3(-1.0f, 0.0f, 0.0f));
+  mMat = glm::rotate(glm::mat4(1.0f), (float)(0*M_PI/2), glm::vec3(0.0f, 1.0f, 0.0f));
+  mMat = glm::rotate(mMat, (float)(M_PI/2), glm::vec3(1.0f, 0.0f, 0.0f));
   mMat = glm::translate(mMat, glm::vec3(-xcorrection*scale, -ycorrection*scale, 0));
   mMat = glm::scale(mMat, glm::vec3(scale, scale, scale));
   mvMat = vMat * mMat;
