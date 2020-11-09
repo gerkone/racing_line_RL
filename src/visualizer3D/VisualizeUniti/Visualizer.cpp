@@ -27,10 +27,13 @@ using namespace std;
 //VBO = Vertex Buffer Objects
 
 float scale = 1.0f;
+float scalecar = 0.001;
 float cameraX , cameraY, cameraZ;
 float lookingDirX, lookingDirY, lookingDirZ;
 float carLocX, carLocY;
 int carposindex = 0;
+double xcorrection = 0;
+double ycorrection = 0;
 
 float backmousex=0, backmousey=0;
 bool mouseblocked = false;
@@ -166,8 +169,8 @@ void setupVertices(){
 void init (GLFWwindow* window){
     renderingProgramTrack = createShaderProgram((char *)"Shader/vertShaderT.glsl",(char *) "Shader/fragShaderT.glsl");
     renderingProgramCar= createShaderProgram((char *)"Shader/vertShaderC.glsl",(char *) "Shader/fragShaderC.glsl");
-    cameraX = 0.0f; cameraY = 4.0f; cameraZ = 0.0f;
-    lookingDirX = 0; lookingDirY = 0; lookingDirZ = -1;
+    cameraX = 0.0f; cameraY = 2.0f; cameraZ = 0.0f;
+    lookingDirX = -1; lookingDirY = 0; lookingDirZ = 0;
     setupVertices();
 }
 
@@ -195,9 +198,10 @@ void displayTrack(GLFWwindow* window, double currentTime){
 
   //Costruisco la mvMat
   vMat = glm::lookAt(glm::vec3(cameraX, cameraY, cameraZ), glm::vec3(cameraX+lookingDirX, cameraY+lookingDirY, cameraZ+lookingDirZ), glm::vec3(0.0f, 1.0f, 0.0f));
-  mMat = glm::rotate(glm::mat4(1.0f), 0.785398f*2, glm::vec3(-1.0f, 0.0f, 0.0f));
-  mMat = glm::translate(mMat, glm::vec3(-vertices[0]*scale, -vertices[1]*scale, 0));
-  mMat = glm::scale(mMat, glm::vec3( scale, scale, scale));
+  mMat = glm::rotate(glm::mat4(1.0f), (float)(M_PI/2), glm::vec3(0.0f, 1.0f, 0.0f));
+  mMat = glm::rotate(mMat, (float)(M_PI/2), glm::vec3(-1.0f, 0.0f, 0.0f));
+  mMat = glm::translate(mMat, glm::vec3(-xcorrection*scale, -ycorrection*scale, 0));
+  mMat = glm::scale(mMat, glm::vec3(scale, scale, scale));
   mvMat = vMat * mMat;
 
   //Spedisco matrici allo shader
@@ -235,7 +239,7 @@ void displayCar(GLFWwindow* window, double currentTime){
   mvStack.top() *= glm::translate(glm::mat4(1.0f), glm::vec3(carLocX, 0.2, carLocY));
   mvStack.push(mvStack.top());
   mvStack.top() *= glm::rotate(glm::mat4(1.0f), carphi, glm::vec3(0.0f, 1.0f, 0.0f));
-  mvStack.top() *= glm::scale(glm::mat4(1.0f), glm::vec3( 0.005f, 0.005f, 0.005f ));
+  mvStack.top() *= glm::scale(glm::mat4(1.0f), glm::vec3( scalecar, scalecar, scalecar ));
 
   //Spedisco matrici allo shader
   glUniformMatrix4fv(mvLoc, 1, GL_FALSE, glm::value_ptr(mvStack.top()));
@@ -253,10 +257,10 @@ void displayCar(GLFWwindow* window, double currentTime){
 
   //Ruota Davanti DX
   mvStack.push(mvStack.top());
-  mvStack.top() *= glm::translate(glm::mat4(1.0f), glm::vec3(0.67*sin(carphi)-0.4*cos(carphi), 0.18, 0.67*cos(carphi)+0.4*sin(carphi)));
+  mvStack.top() *= glm::translate(glm::mat4(1.0f), glm::vec3(0.67*scalecar*200*sin(carphi)-0.4*scalecar*200*cos(carphi), 0.18*scalecar*200, 0.67*scalecar*200*cos(carphi)+0.4*scalecar*200*sin(carphi)));
   mvStack.top() *=glm::rotate(glm::mat4(1.0f), alpha, glm::vec3(1, 0, 0));
   mvStack.top() *=glm::rotate(glm::mat4(1.0f), sterzo+carphi, glm::vec3(0, cos(alpha), -sin(alpha)));
-  mvStack.top() *= glm::scale(glm::mat4(1.0f), glm::vec3( 0.005f, 0.005f, 0.005f ));
+  mvStack.top() *= glm::scale(glm::mat4(1.0f), glm::vec3( scalecar, scalecar, scalecar ));
 
 
   //Spedisco matrici allo shader
@@ -275,10 +279,10 @@ void displayCar(GLFWwindow* window, double currentTime){
 
   //Ruota Davanti SX
   mvStack.push(mvStack.top());
-  mvStack.top() *= glm::translate(glm::mat4(1.0f), glm::vec3(0.67*sin(carphi)+0.4*cos(carphi), 0.18, 0.67*cos(carphi)-0.4*sin(carphi)));
+  mvStack.top() *= glm::translate(glm::mat4(1.0f), glm::vec3(0.67*scalecar*200*sin(carphi)+0.4*scalecar*200*cos(carphi), 0.18*scalecar*200, 0.67*scalecar*200*cos(carphi)-0.4*scalecar*200*sin(carphi)));
   mvStack.top() *=glm::rotate(glm::mat4(1.0f), -alpha, glm::vec3(1, 0, 0));
   mvStack.top() *=glm::rotate(glm::mat4(1.0f), sterzo+carphi+3.14159f, glm::vec3(0, cos(-alpha), -sin(-alpha)));
-  mvStack.top() *= glm::scale(glm::mat4(1.0f), glm::vec3( 0.005f, 0.005f, 0.005f ));
+  mvStack.top() *= glm::scale(glm::mat4(1.0f), glm::vec3( scalecar, scalecar, scalecar ));
 
 
   //Spedisco matrici allo shader
@@ -297,10 +301,10 @@ void displayCar(GLFWwindow* window, double currentTime){
 
   //Ruota Dietro DX
   mvStack.push(mvStack.top());
-  mvStack.top() *= glm::translate(glm::mat4(1.0f), glm::vec3(-0.7*sin(carphi)-0.4*cos(carphi), 0.18, -0.7*cos(carphi)+0.4*sin(carphi)));
+  mvStack.top() *= glm::translate(glm::mat4(1.0f), glm::vec3(-0.7*scalecar*200*sin(carphi)-0.4*scalecar*200*cos(carphi), 0.18*scalecar*200, -0.7*scalecar*200*cos(carphi)+0.4*scalecar*200*sin(carphi)));
   mvStack.top() *=glm::rotate(glm::mat4(1.0f), alpha, glm::vec3(1, 0, 0));
   mvStack.top() *=glm::rotate(glm::mat4(1.0f), carphi, glm::vec3(0, cos(alpha), -sin(alpha)));
-  mvStack.top() *= glm::scale(glm::mat4(1.0f), glm::vec3( 0.005f, 0.005f, 0.005f ));
+  mvStack.top() *= glm::scale(glm::mat4(1.0f), glm::vec3( scalecar, scalecar, scalecar ));
 
 
   //Spedisco matrici allo shader
@@ -319,10 +323,10 @@ void displayCar(GLFWwindow* window, double currentTime){
 
   //Ruota Dietro SX
   mvStack.push(mvStack.top());
-  mvStack.top() *= glm::translate(glm::mat4(1.0f), glm::vec3(-0.7*sin(carphi)+0.4*cos(carphi), 0.18, -0.7*cos(carphi)-0.4*sin(carphi)));
+  mvStack.top() *= glm::translate(glm::mat4(1.0f), glm::vec3(-0.7*scalecar*200*sin(carphi)+0.4*scalecar*200*cos(carphi), 0.18*scalecar*200, -0.7*scalecar*200*cos(carphi)-0.4*scalecar*200*sin(carphi)));
   mvStack.top() *=glm::rotate(glm::mat4(1.0f), -alpha, glm::vec3(1, 0, 0));
   mvStack.top() *=glm::rotate(glm::mat4(1.0f), carphi+3.14159f, glm::vec3(0, cos(-alpha), -sin(-alpha)));
-  mvStack.top() *= glm::scale(glm::mat4(1.0f), glm::vec3( 0.005f, 0.005f, 0.005f ));
+  mvStack.top() *= glm::scale(glm::mat4(1.0f), glm::vec3( scalecar, scalecar, scalecar ));
 
 
   //Spedisco matrici allo shader
@@ -440,16 +444,18 @@ static void cursor_position_callback(GLFWwindow* window, double xpos, double ypo
     //cout << xpos << ";" << ypos << endl;
   }
 }
+
 void window_size_callback(GLFWwindow* window, int newWidth, int newHeight){
   aspect = (float)newWidth/(float)newHeight;
   glViewport(0, 0, newWidth, newHeight);
   pMat = glm::perspective(1.0472f, aspect, 0.1f, 1000.0f); //1.0472 radians = 60 degrees
 }
+
 int main(void){
     if (!glfwInit()) {exit(EXIT_FAILURE);}
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-    GLFWwindow* window = glfwCreateWindow(1000, 1000, "09_TriangoloRotante", NULL, NULL);
+    GLFWwindow* window = glfwCreateWindow(1000, 1000, "Racing Line RL", NULL, NULL);
     glfwMakeContextCurrent(window);
     if (glewInit() != GLEW_OK){exit(EXIT_FAILURE);}
     glfwSwapInterval(1);
@@ -457,6 +463,10 @@ int main(void){
     TrackData TD(TRACKFILENAME, 1);
     vertices = TD.getVerticesArray();
     NumOfVerticesTrack = TD.getNumOfVertices();
+    xcorrection = (vertices[0] + vertices[3])/2;
+    ycorrection = (vertices[1] + vertices[4])/2;
+
+
     init(window);
     glfwSetKeyCallback(window, key_callback);
     glfwSetCursorPosCallback(window, cursor_position_callback);
@@ -497,13 +507,11 @@ int main(void){
         values.push_back(stod(data));
 
         // update environment variables
-        // TODO CORREGGERE SISTEMA COORDINATE
-        carLocX = values.at(0);
-        carLocY = values.at(1);
-        carphi = values.at(2);
+        carLocX = values.at(0)-xcorrection;
+        carLocY = values.at(1)-ycorrection;
+        carphi = values.at(2)-M_PI;
         sterzo = values.at(3);
-        cout << carLocX << ", " << carLocY << ", " << carphi << ", " << sterzo << endl;
-
+        //cout << carLocX << ", " << carLocY << ", " << carphi << ", " << sterzo << endl;
         // send confirmation
         socket.send(zmq::buffer(ack), zmq::send_flags::none);
 

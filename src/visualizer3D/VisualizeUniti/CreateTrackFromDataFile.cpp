@@ -8,6 +8,7 @@
 using namespace std;
 
 #define TRACKFILENAME "trackdata_4387235659010134370.txt"
+
 class TrackData{
 private:
   vector<glm::vec3> points; //real data

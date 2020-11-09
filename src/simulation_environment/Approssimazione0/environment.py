@@ -2,6 +2,7 @@ from math import cos, sin, atan, tan, sqrt, floor
 import numpy as np
 from scipy.spatial import Delaunay
 import time
+import os
 
 from model import Vehicle
 
@@ -29,7 +30,7 @@ class TrackEnvironment(object):
         # track width
         self.width = 5
         # load track array
-        self._track = np.load("track_1142901636653201649.npy")
+        self._track = np.load("track_4387235659010134370.npy")
         # mapping function: divide the track vertically in sections
         # reduce the closest point search to only a couple of points in the same section
         self._leftmost = min([x for x,_ in self._track])
@@ -161,7 +162,8 @@ class TrackEnvironment(object):
         # take a couple of points after to avoid superposition
         q2 = self._track[3]
         track_angle = self._angle2points(q1, q2)
-        self.car.reset(0, 0, track_angle)
+        #self.car.reset(0, 0, track_angle)
+        self.car.reset(self._track[0][0], self._track[0][1], track_angle)
 
     def render(self):
         """
