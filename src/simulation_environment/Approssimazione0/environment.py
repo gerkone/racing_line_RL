@@ -4,7 +4,6 @@ from scipy.spatial import Delaunay
 import time
 import os
 import re
-from operator import itemgetter
 
 from model import Vehicle
 
@@ -182,20 +181,28 @@ class TrackEnvironment(object):
             data = "{}/{}/{}/{}".format(carpos[0], carpos[1], carangles[0], carangles[1])
             self._socket.send_string(data)
             # wait for confirmation
-            self._socket.recv()
+            #self._socket.recv()
 
     def getActionVideogame(self):
         if self._videogame:
             #wait until reciving data from client
             #formatted as {Newaccelleration}/{new delta}
             message = self._socket.recv()
-            #NON FUNZIONA FINISCO STA SERA
-            data = re.match('(?P<_0>\d+)/(?P<_1>\d+)', message)
-
+            #formatting
+            data = re.findall('(\d+\.\d+)/(\d+\.\d+)', message.decode("utf-8"))
+            print(message.decode("utf-8"))
+            #set value on the model
+            self.car.setAcceleration(float(data[0][0]))
+            self.car.setSteering(float(data[0][1]))
+            #step forward model by dt
+            self.car.integrate(self.dt)
 
 o = TrackEnvironment()
 o.reset()
-track = np.load("track_4387235659010134370.npy")
+while True:
+    o.render()
+    o.getActionVideogame()
+"""
 while True:
     for i in range(len(track)):
         q1 = track[i]
@@ -205,3 +212,4 @@ while True:
         o.car.reset(q1[0], q1[1], track_angle)
         #o.step([0,0])
         o.render()
+"""

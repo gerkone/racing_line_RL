@@ -14,6 +14,7 @@
 #include "CreateTrackFromDataFile.cpp"
 #include "BlenderImport/ImportedModel.cpp"
 #include "Simulation/Car.h"
+#include <sstream>
 
 using namespace std;
 
@@ -34,6 +35,9 @@ float carLocX, carLocY;
 int carposindex = 0;
 double xcorrection = 0;
 double ycorrection = 0;
+
+double accelleration = 0;
+double steering = 0;
 
 float backmousex=0, backmousey=0;
 bool mouseblocked = false;
@@ -372,16 +376,20 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
         cameraZ -= lookingDirZ*PASSOCAMERA;
     }
     if (glfwGetKey(window, 65) == GLFW_PRESS){//A
-        car.storgiSx();
+        //car.storgiSx();
+        steering-=0.1;
     }
     if (glfwGetKey(window, 68) == GLFW_PRESS){//D
-        car.storgiDx();
+        //car.storgiDx();
+        steering+=0.1;
     }
     if (glfwGetKey(window, 81) == GLFW_PRESS){//Q
-        car.accelate();
+        //car.accelate();
+        accelleration+=0.1;
     }
     if (glfwGetKey(window, 69) == GLFW_PRESS){//E
-        car.stroke();
+        //car.stroke();
+        accelleration-=0.1;
     }
     if (glfwGetKey(window, 256) == GLFW_PRESS){
         if (mouseblocked){
@@ -513,8 +521,18 @@ int main(void){
         sterzo = values.at(3);
         //cout << carLocX << ", " << carLocY << ", " << carphi << ", " << sterzo << endl;
         // send confirmation
-        socket.send(zmq::buffer(ack), zmq::send_flags::none);
+        //socket.send(zmq::buffer(ack), zmq::send_flags::none);
 
+        cout << "fino a qua tutto ok" << endl;
+
+        //send inputdata
+        stringstream inputdata;
+        inputdata << accelleration;
+        inputdata << ".0";
+        inputdata << "/";
+        inputdata << steering;
+        inputdata << ".0";
+        socket.send(zmq::buffer(inputdata.str()), zmq::send_flags::none);
     }
     glfwDestroyWindow(window);
     glfwTerminate();
