@@ -2,7 +2,7 @@ from math import cos, sin, atan, tan, sqrt
 import numpy as np
 
 class Vehicle(object):
-    def __init__(self, maxMa=1, maxDelta=1):
+    def __init__(self, maxMa=1, maxDelta=0.3):
         self._x = 0     #x position
         self._y = 0     #y positionx
         self._dotx = 0  #x velocity
@@ -56,6 +56,42 @@ class Vehicle(object):
         elif deltaCoff<-1:
             deltaCoff = -1
         self._delta = deltaCoff*self._maxDelta
+
+    def littleSteeringLeft(self):
+        deltaCoff = self._delta/self._maxDelta
+        deltaCoff -= 0.005
+        if deltaCoff>1:
+            deltaCoff = 1
+        elif deltaCoff<-1:
+            deltaCoff = -1
+        self._delta = deltaCoff*self._maxDelta
+
+    def littleSteeringRight(self):
+        deltaCoff = self._delta/self._maxDelta
+        deltaCoff += 0.005
+        if deltaCoff>1:
+            deltaCoff = 1
+        elif deltaCoff<-1:
+            deltaCoff = -1
+        self._delta = deltaCoff*self._maxDelta
+
+    def littleAccelleration(self):
+        MaCoff = self._Ma/self._maxMa
+        MaCoff += 0.01
+        if MaCoff>1:
+            MaCoff = 1
+        elif MaCoff<-1:
+            MaCoff = -1
+        self._Ma = MaCoff*self._maxMa
+
+    def littleDecelleration(self):
+        MaCoff = self._Ma/self._maxMa
+        MaCoff -= 0.05
+        if MaCoff>1:
+            MaCoff = 1
+        elif MaCoff<-1:
+            MaCoff = -1
+        self._Ma = MaCoff*self._maxMa
 
     def getVelocities(self):
         return [self.Vx, self.Vy]

@@ -21,7 +21,7 @@ class TrackEnvironment(object):
     [0] combined Throttle/Break
     [1] steering
     """
-    def __init__(self, dt = 0.01, maxMa=1, maxDelta=1, sections=100, render = True, videogame = True):
+    def __init__(self, dt = 0.01, maxMa=1, maxDelta=0.3, sections=100, render = True, videogame = True):
         self.car = Vehicle(maxMa, maxDelta)
         self.dt = dt
         self.n_states = 6
@@ -186,14 +186,27 @@ class TrackEnvironment(object):
     def getActionVideogame(self):
         if self._videogame:
             #wait until reciving data from client
-            #formatted as {Newaccelleration}/{new delta}
+            #formatted as {acc/dec}/{steering}
+            #acc/dec:
+            #0 -> do nothing
+            #1 -> accellerate
+            #2 -> decellerate
+            #steering
+            #0 -> do nothing
+            #1 -> turn left
+            #2 -> turn right
             message = self._socket.recv()
             #formatting
-            data = re.findall('(\d+\.\d+)/(\d+\.\d+)', message.decode("utf-8"))
-            print(message.decode("utf-8"))
+            data = re.findall('(\d+)/(\d+)', message.decode("utf-8"))
             #set value on the model
-            self.car.setAcceleration(float(data[0][0]))
-            self.car.setSteering(float(data[0][1]))
+            if data[0][0]=='1':
+                self.car.littleAccelleration()
+            elif data[0][0]=='2':
+                self.car.littleDecelleration()
+            if data[0][1]=='1':
+                self.car.littleSteeringLeft()
+            elif data[0][1]=='2':
+                self.car.littleSteeringRight()
             #step forward model by dt
             self.car.integrate(self.dt)
 

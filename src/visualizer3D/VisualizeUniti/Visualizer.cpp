@@ -36,8 +36,12 @@ int carposindex = 0;
 double xcorrection = 0;
 double ycorrection = 0;
 
-double accelleration = 0;
-double steering = 0;
+bool accellerate = false;
+bool decellerate = false;
+bool steeringleft = false;
+bool steeringright = false;
+
+bool cameraAttacedToCar = false;
 
 float backmousex=0, backmousey=0;
 bool mouseblocked = false;
@@ -358,38 +362,44 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
      *FrecciaDx : 262
     */
     if (glfwGetKey(window, 265) == GLFW_PRESS){//freccia su
+      cameraAttacedToCar = true;
     }
     if (glfwGetKey(window, 264) == GLFW_PRESS){//freccia giu
+      cameraAttacedToCar = false;
     }
     if (glfwGetKey(window, 263) == GLFW_PRESS){//freccia sinistra
     }
     if (glfwGetKey(window, 262) == GLFW_PRESS){//freccia destra
     }
     if (glfwGetKey(window, 87) == GLFW_PRESS){//W
+      if (!cameraAttacedToCar){
         cameraX += lookingDirX*PASSOCAMERA;
         //cameraY += lookingDirY*PASSOCAMERA;
         cameraZ += lookingDirZ*PASSOCAMERA;
+      }
     }
     if (glfwGetKey(window, 83) == GLFW_PRESS){//S
+      if (!cameraAttacedToCar){
         cameraX -= lookingDirX*PASSOCAMERA;
         //cameraY += lookingDirY*PASSOCAMERA;
         cameraZ -= lookingDirZ*PASSOCAMERA;
+      }
     }
     if (glfwGetKey(window, 65) == GLFW_PRESS){//A
         //car.storgiSx();
-        steering-=0.1;
+        steeringleft = true;
     }
     if (glfwGetKey(window, 68) == GLFW_PRESS){//D
         //car.storgiDx();
-        steering+=0.1;
+        steeringright = true;
     }
     if (glfwGetKey(window, 81) == GLFW_PRESS){//Q
         //car.accelate();
-        accelleration+=0.1;
+        accellerate = true;
     }
     if (glfwGetKey(window, 69) == GLFW_PRESS){//E
         //car.stroke();
-        accelleration-=0.1;
+        decellerate = true;
     }
     if (glfwGetKey(window, 256) == GLFW_PRESS){
         if (mouseblocked){
@@ -404,7 +414,7 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 
 static void cursor_position_callback(GLFWwindow* window, double xpos, double ypos){
   //NON DEVO RUOTARE ATTORNO AD X MA ATTORNO AD UN ASSE CHE VARIA
-  if (mouseblocked){
+  if (mouseblocked && !cameraAttacedToCar){
     glm::vec3 newlookingDir(lookingDirX, lookingDirY, lookingDirZ);
     float newlookingDirX = lookingDirX;
     float newlookingDirZ = lookingDirZ;
@@ -495,6 +505,10 @@ int main(void){
     socket.send(zmq::buffer(ack), zmq::send_flags::none);
 
     while (!glfwWindowShouldClose(window)) {
+        if (cameraAttacedToCar){
+          cameraX = carLocX-4*sin(carphi); cameraY = 2.0f; cameraZ = carLocY-4*cos(carphi);
+          lookingDirX = carLocX-cameraX; lookingDirY = -cameraY; lookingDirZ = carLocY-cameraZ;
+        }
         display(window, glfwGetTime());
         glfwSwapBuffers(window);
         glfwPollEvents();
@@ -517,22 +531,44 @@ int main(void){
         // update environment variables
         carLocX = values.at(0)-xcorrection;
         carLocY = values.at(1)-ycorrection;
-        carphi = M_PI/2 - values.at(2) + M_PI;
+        carphi = M_PI/2 - values.at(2);
         sterzo = values.at(3);
         //cout << carLocX << ", " << carLocY << ", " << carphi << ", " << sterzo << endl;
         // send confirmation
         //socket.send(zmq::buffer(ack), zmq::send_flags::none);
 
-        cout << "fino a qua tutto ok" << endl;
-
         //send inputdata
         stringstream inputdata;
-        inputdata << accelleration;
-        inputdata << ".0";
-        inputdata << "/";
-        inputdata << steering;
-        inputdata << ".0";
+        if (!accellerate || !decellerate){
+          if (accellerate){
+            inputdata << 1 << "/";
+          }else if (decellerate){
+            inputdata << 2 << "/";
+          }else{
+            inputdata << 0 << "/";
+          }
+        }else{
+          inputdata << 0 << "/";
+        }
+        if (!steeringleft || !steeringright){
+          if (steeringleft){
+            inputdata << 1;
+          } else if (steeringright){
+            inputdata << 2;
+          }else{
+            inputdata << 0;
+          }
+        }else{
+          inputdata << 0;
+        }
         socket.send(zmq::buffer(inputdata.str()), zmq::send_flags::none);
+
+
+        //Clear Variables
+        accellerate = false;
+        decellerate = false;
+        steeringleft = false;
+        steeringright = false;
     }
     glfwDestroyWindow(window);
     glfwTerminate();
