@@ -2,7 +2,8 @@ from math import cos, sin, atan, tan, sqrt, floor
 import numpy as np
 from scipy.spatial import Delaunay
 import time
-import os
+import os, json
+import pygame
 
 from model import Vehicle
 
@@ -178,17 +179,38 @@ class TrackEnvironment(object):
             self._socket.send_string(data)
             # wait for confirmation
             self._socket.recv()
-from time import sleep
+
+pygame.init()
+LEFT, RIGHT, UP, DOWN = False, False, False, False
+#Initialize controller
+joysticks = []
+for i in range(pygame.joystick.get_count()):
+    joysticks.append(pygame.joystick.Joystick(i))
+for joystick in joysticks:
+    joystick.init()
+
+with open(os.path.join("ps4_keys.json"), 'r+') as file:
+    button_keys = json.load(file)
+# 0: Left analog horizonal, 1: Left Analog Vertical, 2: Right Analog Horizontal
+# 3: Right Analog Vertical 4: Left Trigger, 5: Right Trigger
+analog_keys = {0:0, 1:0, 2:0, 3:0, 4:-1, 5: -1 }
 
 o = TrackEnvironment()
 o.reset()
-track = np.load("track_4387235659010134370.npy")
 while True:
-    for i in range(len(track)):
-        q1 = track[i]
-        # take a couple of points after to avoid superposition
-        q2 = track[(i + 2) % len(track)]
-        track_angle = atan((q2[1] - q1[1]) / (q2[0] - q1[0]))
-        o.car.reset(q1[0], q1[1], track_angle)
-        #o.step([0,0])
-        o.render()
+    for event in pygame.event.get():
+        steering = 0
+        throttle = 0
+        if event.type == pygame.QUIT:
+            running = False
+        if event.type == pygame.KEYDOWN:
+            pass
+        if event.type == pygame.JOYAXISMOTION:
+            analog_keys[event.axis] = event.value
+            # Horizontal Analog
+            steering = analog_keys[0] / 10
+            # Triggers
+            throttle = analog_keys[5]
+
+    print(o.step([throttle, steering]))
+    o.render()

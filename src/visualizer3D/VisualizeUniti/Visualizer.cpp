@@ -509,7 +509,7 @@ int main(void){
         // update environment variables
         carLocX = values.at(0)-xcorrection;
         carLocY = values.at(1)-ycorrection;
-        carphi = M_PI/2 - values.at(2) + M_PI;
+        carphi = M_PI/2 - values.at(2);
         sterzo = values.at(3);
         //cout << carLocX << ", " << carLocY << ", " << carphi << ", " << sterzo << endl;
         // send confirmation
