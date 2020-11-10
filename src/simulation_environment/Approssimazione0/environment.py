@@ -162,7 +162,7 @@ class TrackEnvironment(object):
         # take a couple of points after to avoid superposition
         q2 = self._track[3]
         track_angle = self._angle2points(q1, q2)
-        self.car.reset(0, 0, track_angle)
+        self.car.reset(q1[0], q1[1], track_angle)
 
     def render(self):
         """
@@ -178,9 +178,17 @@ class TrackEnvironment(object):
             self._socket.send_string(data)
             # wait for confirmation
             self._socket.recv()
+from time import sleep
 
 o = TrackEnvironment()
 o.reset()
+track = np.load("track_4387235659010134370.npy")
 while True:
-    # o.step([0,0])
-    o.render()
+    for i in range(len(track)):
+        q1 = track[i]
+        # take a couple of points after to avoid superposition
+        q2 = track[(i + 2) % len(track)]
+        track_angle = atan((q2[1] - q1[1]) / (q2[0] - q1[0]))
+        o.car.reset(q1[0], q1[1], track_angle)
+        #o.step([0,0])
+        o.render()
