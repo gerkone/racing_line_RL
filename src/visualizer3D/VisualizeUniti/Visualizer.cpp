@@ -510,7 +510,8 @@ int main(void){
         carLocX = values.at(0)-xcorrection;
         carLocY = values.at(1)-ycorrection;
         carphi = M_PI/2 - values.at(2);
-        sterzo = values.at(3);
+        sterzo = -values.at(3) * 15;
+        cameraY = 10;
         //cout << carLocX << ", " << carLocY << ", " << carphi << ", " << sterzo << endl;
         // send confirmation
         socket.send(zmq::buffer(ack), zmq::send_flags::none);

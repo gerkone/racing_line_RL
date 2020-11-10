@@ -37,6 +37,7 @@ class TrackEnvironment(object):
         self._leftmost = min([x for x,_ in self._track])
         track_extension = max([x for x,_ in self._track]) - self._leftmost
         self._section_frame = (track_extension) / sections
+        self._sections = sections
         # discrete mapping between x values and candidate nearest points
         self._section_mapping = [[] for _ in range(sections)]
         for track_index, q in enumerate(self._track):
@@ -56,7 +57,12 @@ class TrackEnvironment(object):
         """
         return the index of the relative frame in the mapping
         """
-        return int((q[0] - self._leftmost) // self._section_frame)
+        index = (q[0] - self._leftmost) // self._section_frame
+        if(index > self._sections):
+            index = self._sections
+        if(index < 0):
+            index = 0
+        return int()
 
     def _nearest_point(self):
         """
@@ -188,11 +194,8 @@ for i in range(pygame.joystick.get_count()):
     joysticks.append(pygame.joystick.Joystick(i))
 for joystick in joysticks:
     joystick.init()
-
-with open(os.path.join("ps4_keys.json"), 'r+') as file:
-    button_keys = json.load(file)
-# 0: Left analog horizonal, 1: Left Analog Vertical, 2: Right Analog Horizontal
-# 3: Right Analog Vertical 4: Left Trigger, 5: Right Trigger
+# 0: Left analog horizonal
+# 2: Left Trigger, 5: Right Trigger
 analog_keys = {0:0, 1:0, 2:0, 3:0, 4:-1, 5: -1 }
 
 o = TrackEnvironment()
@@ -208,9 +211,9 @@ while True:
         if event.type == pygame.JOYAXISMOTION:
             analog_keys[event.axis] = event.value
             # Horizontal Analog
-            steering = analog_keys[0] / 10
+            steering = analog_keys[0] / 15
             # Triggers
-            throttle = analog_keys[5]
+            throttle = (analog_keys[5] + 1) / 2 - (analog_keys[2] + 1) / 2
 
-    print(o.step([throttle, steering]))
+    print(o.step([throttle, steering])[0])
     o.render()
