@@ -3,6 +3,8 @@ import numpy as np
 from scipy.spatial import Delaunay
 import time
 import os
+import re
+from operator import itemgetter
 
 from model import Vehicle
 
@@ -20,7 +22,7 @@ class TrackEnvironment(object):
     [0] combined Throttle/Break
     [1] steering
     """
-    def __init__(self, dt = 0.01, maxMa=1, maxDelta=1, sections=100, render = True):
+    def __init__(self, dt = 0.01, maxMa=1, maxDelta=1, sections=100, render = True, videogame = True):
         self.car = Vehicle(maxMa, maxDelta)
         self.dt = dt
         self.n_states = 6
@@ -42,7 +44,10 @@ class TrackEnvironment(object):
             self._section_mapping[self._sectionMapper(q)].append(track_index)
         # message passing connetion
         self._render = render
-        if render:
+        # input from the rendering program mode
+        if self._render:
+            self._videogame = videogame
+        if self._render:
             import zmq
             context = zmq.Context()
             self._socket = context.socket(zmq.REP)
@@ -178,7 +183,15 @@ class TrackEnvironment(object):
             self._socket.send_string(data)
             # wait for confirmation
             self._socket.recv()
-from time import sleep
+
+    def getActionVideogame(self):
+        if self._videogame:
+            #wait until reciving data from client
+            #formatted as {Newaccelleration}/{new delta}
+            message = self._socket.recv()
+            #NON FUNZIONA FINISCO STA SERA
+            data = re.match('(?P<_0>\d+)/(?P<_1>\d+)', message)
+
 
 o = TrackEnvironment()
 o.reset()

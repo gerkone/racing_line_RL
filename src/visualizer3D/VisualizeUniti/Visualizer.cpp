@@ -27,7 +27,7 @@ using namespace std;
 //VBO = Vertex Buffer Objects
 
 float scale = 1.0f;
-float scalecar = 0.001;
+float scalecar = 0.002;
 float cameraX , cameraY, cameraZ;
 float lookingDirX, lookingDirY, lookingDirZ;
 float carLocX, carLocY;
@@ -169,7 +169,7 @@ void setupVertices(){
 void init (GLFWwindow* window){
     renderingProgramTrack = createShaderProgram((char *)"Shader/vertShaderT.glsl",(char *) "Shader/fragShaderT.glsl");
     renderingProgramCar= createShaderProgram((char *)"Shader/vertShaderC.glsl",(char *) "Shader/fragShaderC.glsl");
-    cameraX = 0.0f; cameraY = 2.0f; cameraZ = 0.0f;
+    cameraX = 0.0f; cameraY = 5.0f; cameraZ = 0.0f;
     lookingDirX = -1; lookingDirY = 0; lookingDirZ = 0;
     setupVertices();
 }
