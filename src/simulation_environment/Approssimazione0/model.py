@@ -17,7 +17,7 @@ class Vehicle(object):
         self._Vy = 0
         self._maxMa = maxMa
         self._maxDelta = maxDelta
-        self._massa = 1 #vehicle mass
+        self._massa = 50 #vehicle mass
         self._LF = 1.5 #distance from front assex
         self._LR = 1.5 #distance from rear assex
         self._wheelRadius = 0.4 #wheel radius
@@ -43,9 +43,9 @@ class Vehicle(object):
 
         v = sqrt(self.Vx*self.Vx  +  self.Vy*self.Vy)
         if v>0:#da cambiare nel prossimo futuro
-            self.Vx = (self._Ma-v*v*0.1)*dt + self.Vx
+            self.Vx = (self._Ma-v*v*0.01)*dt + self.Vx
         else:
-            self.Vx = (self._Ma-v*0.1)*dt + self.Vx
+            self.Vx = (self._Ma-v*0.05)*dt + self.Vx
         #Come back to the street SR
         self._dotx = self.Vx*cos(self._psi) - self.Vy*sin(self._psi)
         self._doty = self.Vx*sin(self._psi) + self.Vy*cos(self._psi)
@@ -56,10 +56,10 @@ class Vehicle(object):
         self.alpha = v*dt/self._wheelRadius
 
         dotpsinew = self.Vx*tan(self._delta)/(self._LR+self._LF)
-        angularmomentum = 25.0*(dotpsinew-self._dotpsi)
+        angularmomentum = 35.0*(dotpsinew-self._dotpsi)
 
-        self._dotpsi = (angularmomentum+self.CalcPacejkaFront()+self.CalcPacejkaRear())*dt + self._dotpsi
-        #print("CalcPacejkaFront:{} SlipF:{} CalcPacejkaRear:{} SlipR:{}".format(self.CalcPacejkaFront(), self._slipF, self.CalcPacejkaRear(), self._slipR))
+        self._dotpsi = (angularmomentum-self.CalcPacejkaFront()*self._LF*cos(self._delta)-self.CalcPacejkaRear()*self._LR)*dt + self._dotpsi
+        #print("PacejkaDiff{}".format(self.CalcPacejkaFront()*self._LF*cos(self._delta)+self.CalcPacejkaRear()*self._LR))
 
         self._psi = self._dotpsi*dt + self._psi
 
@@ -89,7 +89,7 @@ class Vehicle(object):
 
     def littleSteeringLeft(self):
         deltaCoff = self._delta/self._maxDelta
-        deltaCoff -= 0.04
+        deltaCoff -= 0.1
         if deltaCoff>1:
             deltaCoff = 1
         elif deltaCoff<-1:
@@ -98,7 +98,7 @@ class Vehicle(object):
 
     def littleSteeringRight(self):
         deltaCoff = self._delta/self._maxDelta
-        deltaCoff += 0.04
+        deltaCoff += 0.1
         if deltaCoff>1:
             deltaCoff = 1
         elif deltaCoff<-1:
