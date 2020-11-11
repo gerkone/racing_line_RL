@@ -21,7 +21,7 @@ class TrackEnvironment(object):
     [0] combined Throttle/Break
     [1] steering
     """
-    def __init__(self, dt = 0.01, maxMa=1, maxDelta=0.3, sections=100, render = True, videogame = True):
+    def __init__(self, dt = 0.01, maxMa=3, maxDelta=1, sections=100, render = True, videogame = True):
         self.car = Vehicle(maxMa, maxDelta)
         self.dt = dt
         self.n_states = 6
