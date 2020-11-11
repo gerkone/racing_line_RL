@@ -21,7 +21,7 @@ class TrackEnvironment(object):
     [0] combined Throttle/Break
     [1] steering
     """
-    def __init__(self, dt = 0.01, maxMa=3, maxDelta=1, sections=100, render = True, videogame = True):
+    def __init__(self, dt = 0.01, maxMa=6, maxDelta=1, sections=100, render = True, videogame = True):
         self.car = Vehicle(maxMa, maxDelta)
         self.dt = dt
         self.n_states = 6
@@ -200,9 +200,11 @@ class TrackEnvironment(object):
             data = re.findall('(\d+)/(\d+)', message.decode("utf-8"))
             #set value on the model
             if data[0][0]=='1':
-                self.car.littleAccelleration()
+                self.car.setAcceleration(1.0)
             elif data[0][0]=='2':
-                self.car.littleDecelleration()
+                self.car.setAcceleration(-1.0)
+            else:
+                self.car.setAcceleration(0.0)
             if data[0][1]=='1':
                 self.car.littleSteeringLeft()
             elif data[0][1]=='2':
