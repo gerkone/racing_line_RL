@@ -4,6 +4,7 @@ from scipy.spatial import Delaunay
 import time
 import os
 import re
+import pygame
 
 from model import Vehicle
 
@@ -37,6 +38,7 @@ class TrackEnvironment(object):
         self._leftmost = min([x for x,_ in self._track])
         track_extension = max([x for x,_ in self._track]) - self._leftmost
         self._section_frame = (track_extension) / sections
+        self._sections = sections
         # discrete mapping between x values and candidate nearest points
         self._section_mapping = [[] for _ in range(sections)]
         for track_index, q in enumerate(self._track):
@@ -59,14 +61,28 @@ class TrackEnvironment(object):
         """
         return the index of the relative frame in the mapping
         """
-        return int((q[0] - self._leftmost) // self._section_frame)
+        index = (q[0] - self._leftmost) // self._section_frame
+        if(index >= self._sections):
+            index = self._sections - 1
+        if(index < 0):
+            index = 0
+        return int(index)
 
     def _nearest_point(self):
         """
         return the index in the track array of the nearest point to the current car position
         """
         carpos = self.car.getPosition()
+        offset = 0
+        print(self._sectionMapper(carpos), len(self._section_mapping))
         candidates = self._section_mapping[self._sectionMapper(carpos)]
+        # if there are no points in the selected session search around it until some points are found
+        while(not candidates):
+            offset+=1
+            inner_index = min(self._sectionMapper(carpos) - offset, 0)
+            outer_index = min(self._sectionMapper(carpos) + offset, self._sections - 1)
+            candidates = [*self._section_mapping[inner_index],
+            *self._section_mapping[outer_index]]
         return min(candidates, key = lambda i : self._dist(self._track[i]))
 
     def _dist(self, q_track):
@@ -181,7 +197,7 @@ class TrackEnvironment(object):
             data = "{}/{}/{}/{}".format(carpos[0], carpos[1], carangles[0], carangles[1])
             self._socket.send_string(data)
             # wait for confirmation
-            #self._socket.recv()
+            self._socket.recv()
 
     def getActionVideogame(self):
         if self._videogame:
@@ -212,19 +228,35 @@ class TrackEnvironment(object):
             #step forward model by dt
             self.car.integrate(self.dt)
 
+pygame.init()
+LEFT, RIGHT, UP, DOWN = False, False, False, False
+#Initialize controller
+joysticks = []
+for i in range(pygame.joystick.get_count()):
+    joysticks.append(pygame.joystick.Joystick(i))
+for joystick in joysticks:
+    joystick.init()
+# 0: Left analog horizonal
+# 2: Left Trigger, 5: Right Trigger
+analog_keys = {0:0, 1:0, 2:0, 3:0, 4:-1, 5: -1 }
+
 o = TrackEnvironment()
 o.reset()
 while True:
+    for event in pygame.event.get():
+        steering = 0
+        throttle = 0
+        if event.type == pygame.QUIT:
+            running = False
+        if event.type == pygame.KEYDOWN:
+            pass
+        if event.type == pygame.JOYAXISMOTION:
+            analog_keys[event.axis] = event.value
+            # Horizontal Analog
+            steering = analog_keys[0]
+            # Triggers
+            throttle = (analog_keys[5] + 1) / 2 - (analog_keys[2] + 1) / 2
+
+    print(o.step([throttle, steering])[0])
     o.render()
-    o.getActionVideogame()
-"""
-while True:
-    for i in range(len(track)):
-        q1 = track[i]
-        # take a couple of points after to avoid superposition
-        q2 = track[(i + 2) % len(track)]
-        track_angle = atan((q2[1] - q1[1]) / (q2[0] - q1[0]))
-        o.car.reset(q1[0], q1[1], track_angle)
-        #o.step([0,0])
-        o.render()
-"""
+    # o.getActionVideogame()

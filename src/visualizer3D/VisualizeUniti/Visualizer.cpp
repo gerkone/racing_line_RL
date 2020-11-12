@@ -767,33 +767,33 @@ int main(void){
         sterzo = -values.at(3);
         //cout << carLocX << ", " << carLocY << ", " << carphi << ", " << sterzo << endl;
         // send confirmation
-        //socket.send(zmq::buffer(ack), zmq::send_flags::none);
+        socket.send(zmq::buffer(ack), zmq::send_flags::none);
 
         //send inputdata
-        stringstream inputdata;
-        if (!accellerate || !decellerate){
-          if (accellerate){
-            inputdata << 1 << "/";
-          }else if (decellerate){
-            inputdata << 2 << "/";
-          }else{
-            inputdata << 0 << "/";
-          }
-        }else{
-          inputdata << 0 << "/";
-        }
-        if (!steeringleft || !steeringright){
-          if (steeringleft){
-            inputdata << 1;
-          } else if (steeringright){
-            inputdata << 2;
-          }else{
-            inputdata << 0;
-          }
-        }else{
-          inputdata << 0;
-        }
-        socket.send(zmq::buffer(inputdata.str()), zmq::send_flags::none);
+        // stringstream inputdata;
+        // if (!accellerate || !decellerate){
+        //   if (accellerate){
+        //     inputdata << 1 << "/";
+        //   }else if (decellerate){
+        //     inputdata << 2 << "/";
+        //   }else{
+        //     inputdata << 0 << "/";
+        //   }
+        // }else{
+        //   inputdata << 0 << "/";
+        // }
+        // if (!steeringleft || !steeringright){
+        //   if (steeringleft){
+        //     inputdata << 1;
+        //   } else if (steeringright){
+        //     inputdata << 2;
+        //   }else{
+        //     inputdata << 0;
+        //   }
+        // }else{
+        //   inputdata << 0;
+        // }
+        // socket.send(zmq::buffer(inputdata.str()), zmq::send_flags::none);
 
 
         //Clear Variables
