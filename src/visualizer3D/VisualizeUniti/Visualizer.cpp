@@ -18,8 +18,8 @@
 
 using namespace std;
 
-#define numVAOs 3
-#define numVBOs 3
+#define numVAOs 4
+#define numVBOs 4
 #define PASSOSCALE 0.1f
 #define PASSOCAMERA 1.0f
 #define PASSOVISUALE 0.1f
@@ -29,6 +29,7 @@ using namespace std;
 
 float scale = 1.0f;
 float scalecar = 0.002;
+float scalecolline = 5.0f;
 float cameraX , cameraY, cameraZ;
 float lookingDirX, lookingDirY, lookingDirZ;
 float carLocX, carLocY;
@@ -48,18 +49,20 @@ bool mouseblocked = false;
 
 float * vertices;
 int NumOfVerticesTrack;
-GLuint renderingProgramTrack, renderingProgramCar; //GLuint è una shortcat per unsigned int
+GLuint renderingProgramTrack, renderingProgramCar, renderingProgramColline; //GLuint è una shortcat per unsigned int
 GLuint vao[numVAOs];
 GLuint vbo[numVBOs];
 GLuint vbo0[numVBOs];
 GLuint vbo1[numVBOs];
 GLuint vbo3[numVBOs];
+GLuint vbo4[numVBOs];
 
 //Variabili allocate in init così non devono essere allocate durante il rendering
-GLuint mvLoc, projLoc;
+GLuint mvLoc, projLoc, nLoc;
+GLuint globalAmbLoc, ambLoc, diffLoc, specLoc, posLoc, mAmbLoc, mDiffLoc, mSpecLoc, mShiLoc;
 int width, height;
 float aspect;
-glm::mat4 pMat, vMat, mMat, mvMat;
+glm::mat4 pMat, vMat, mMat, mvMat, invTrMat;
 stack<glm::mat4> mvStack;
 /*
  * pMat : Perspective matrix
@@ -67,6 +70,22 @@ stack<glm::mat4> mvStack;
  * mMat : Model matrix
  * mvMat : vMat*mMat
 */
+
+glm::vec3 currentLightPos, lightPosV; //Light position in model and view space
+float lightPos[3]; //Light Position in array di float
+glm::vec3 initialLightLoc = glm::vec3(0.0f, 20.0f, 0.0f);// Initial Light position
+
+//WHITE LIGHT PROPRIETY
+float globalAmbient[4] = {0.7f, 0.7f, 0.7f, 1.0f};
+float lightAmbient[4] = {0.0f, 0.0f, 0.0f, 1.0f};
+float lightDiffuse[4] = {1.0f, 1.0f, 1.0f, 1.0f};
+float lightSpecular[4] = {1.0f, 1.0f, 1.0f, 1.0f};
+
+//gold material proprieties
+float * matAmb = goldAmbient();
+float * matDif = goldDiffuse();
+float * matSpe = goldSpecular();
+float matShi = goldShininess();
 
 //ANGOLI
 float alpha = 0; //Angolo di moto delle ruote
@@ -76,6 +95,7 @@ float carphi = 0; //Angolo tra macchina e asse X
 
 ImportedModel carrozzeria("./BlenderImport/Carrozzeria.obj");
 ImportedModel ruotadx("./BlenderImport/Ruota.obj");
+ImportedModel colline("./BlenderImport/Colline.obj");
 
 //SIMULAZIONE
 Car car(0, 0);
@@ -84,6 +104,8 @@ Car car(0, 0);
 glm::vec3 rotate(float, float, float, glm::vec3, float);
 void displayTrack(GLFWwindow*, double);
 void displayCar(GLFWwindow*, double);
+void displayColline(GLFWwindow*, double);
+void installLights(glm::mat4, GLuint);
 
 void setupCarrozzeriaVertices(void){
     std::vector<glm::vec3> vert = carrozzeria.getVertices();
@@ -159,12 +181,70 @@ void setupWheelVertices(void){
 
     glBindVertexArray(0);
 }
+
+void setupCollineVertices(void){
+    std::vector<glm::vec3> vert = colline.getVertices();
+    std::vector<glm::vec2> tex = colline.getTextCoords();
+    std::vector<glm::vec3> norm = colline.getNormalVecs();
+    int numObjVertices = colline.getNumVertices();
+
+    std::vector<float> pvalues; //vertex positions
+    std::vector<float> tvalues; //texture coordinates
+    std::vector<float> nvalues; //normal vectors
+
+    for (int i=0; i<numObjVertices; i++){
+        pvalues.push_back((vert[i]).x);
+        pvalues.push_back((vert[i]).y);
+        pvalues.push_back((vert[i]).z);
+        tvalues.push_back((tex[i]).s);
+        tvalues.push_back((tex[i]).t);
+        nvalues.push_back((norm[i]).x);
+        nvalues.push_back((norm[i]).y);
+        nvalues.push_back((norm[i]).z);
+    }
+    glBindVertexArray(vao[3]);
+    glGenBuffers(numVBOs, vbo4);
+
+    //VBO for vertex location
+    glBindBuffer(GL_ARRAY_BUFFER, vbo4[0]);
+    glBufferData(GL_ARRAY_BUFFER, pvalues.size()*4, &pvalues[0], GL_STATIC_DRAW);
+
+    //VBO for texture coordinates
+    glBindBuffer(GL_ARRAY_BUFFER, vbo4[1]);
+    glBufferData(GL_ARRAY_BUFFER, tvalues.size()*4, &tvalues[0], GL_STATIC_DRAW);
+
+    //VBO for normal vectors
+    glBindBuffer(GL_ARRAY_BUFFER, vbo4[2]);
+    glBufferData(GL_ARRAY_BUFFER, nvalues.size()*4, &nvalues[0], GL_STATIC_DRAW);
+
+    glBindVertexArray(0);
+}
+
 void setupTrackVertices(void){
+    std::vector<float> pvalues; //vertex positions
+    std::vector<float> nvalues; //normal vectors
+    std::vector<float> tvalues; //texture coordinates
+
+    for (int i=0; i<NumOfVerticesTrack; i=i+1){
+        tvalues.push_back(0);
+        tvalues.push_back(0);
+        nvalues.push_back(0);
+        nvalues.push_back(1);
+        nvalues.push_back(0);
+    }
     glBindVertexArray(vao[2]);
     glGenBuffers(numVBOs, vbo3);
 
     glBindBuffer(GL_ARRAY_BUFFER, vbo3[0]);
     glBufferData(GL_ARRAY_BUFFER, sizeof(float)*NumOfVerticesTrack, vertices, GL_STATIC_DRAW);
+
+    //VBO for texture coordinates
+    glBindBuffer(GL_ARRAY_BUFFER, vbo3[1]);
+    glBufferData(GL_ARRAY_BUFFER, tvalues.size()*4, &tvalues[0], GL_STATIC_DRAW);
+
+    //VBO for normal vectors
+    glBindBuffer(GL_ARRAY_BUFFER, vbo3[2]);
+    glBufferData(GL_ARRAY_BUFFER, nvalues.size()*4, &nvalues[0], GL_STATIC_DRAW);
 }
 
 void setupVertices(){
@@ -172,11 +252,13 @@ void setupVertices(){
     setupTrackVertices();
     setupWheelVertices();
     setupCarrozzeriaVertices();
+    setupCollineVertices();
 }
 
 void init (GLFWwindow* window){
     renderingProgramTrack = createShaderProgram((char *)"Shader/vertShaderT.glsl",(char *) "Shader/fragShaderT.glsl");
     renderingProgramCar= createShaderProgram((char *)"Shader/vertShaderC.glsl",(char *) "Shader/fragShaderC.glsl");
+    renderingProgramColline= createShaderProgram((char *)"Shader/vertShaderCol.glsl",(char *) "Shader/fragShaderCol.glsl");
     cameraX = 0.0f; cameraY = 5.0f; cameraZ = 0.0f;
     lookingDirX = -1; lookingDirY = 0; lookingDirZ = 0;
     setupVertices();
@@ -190,6 +272,7 @@ void display (GLFWwindow* window, double currentTime){
     glClear(GL_COLOR_BUFFER_BIT); //Clear the background to black
     displayTrack(window, currentTime);
     displayCar(window, currentTime);
+    displayColline(window, currentTime);
 }
 
 void displayTrack(GLFWwindow* window, double currentTime){
@@ -198,6 +281,7 @@ void displayTrack(GLFWwindow* window, double currentTime){
   //Getto le uniform
   mvLoc = glGetUniformLocation(renderingProgramTrack, "mv_matrix");
   projLoc = glGetUniformLocation(renderingProgramTrack, "proj_matrix");
+  nLoc = glGetUniformLocation(renderingProgramTrack, "norm_matrix");
 
   //Costruisco la pMat
   glfwGetFramebufferSize(window, &width, &height);
@@ -210,16 +294,32 @@ void displayTrack(GLFWwindow* window, double currentTime){
   mMat = glm::rotate(mMat, (float)(M_PI/2), glm::vec3(1.0f, 0.0f, 0.0f));
   mMat = glm::translate(mMat, glm::vec3(-xcorrection*scale, -ycorrection*scale, 0));
   mMat = glm::scale(mMat, glm::vec3(scale, scale, scale));
+
+  //Set up lights
+  currentLightPos = glm::vec3(initialLightLoc.x, initialLightLoc.y, initialLightLoc.z);
+  installLights(vMat, renderingProgramTrack);
+
   mvMat = vMat * mMat;
+
+  //Build matrix for trasforming vectors
+  invTrMat = glm::transpose(glm::inverse(mvMat));
 
   //Spedisco matrici allo shader
   glUniformMatrix4fv(mvLoc, 1, GL_FALSE, glm::value_ptr(mvMat));
   glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(pMat));
+  glUniformMatrix4fv(nLoc, 1, GL_FALSE, glm::value_ptr(invTrMat));
 
   //Associazione VBO
   glBindBuffer(GL_ARRAY_BUFFER, vbo3[0]);
   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
   glEnableVertexAttribArray(0);
+
+  glBindBuffer(GL_ARRAY_BUFFER, vbo3[2]);
+  glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
+  glEnableVertexAttribArray(1);
+
+  glEnable(GL_CULL_FACE);
+  glFrontFace(GL_CCW);
   glEnable(GL_DEPTH_TEST);
   glDepthFunc(GL_LEQUAL);
   glDrawArrays(GL_TRIANGLES, 0, NumOfVerticesTrack);
@@ -231,6 +331,7 @@ void displayCar(GLFWwindow* window, double currentTime){
   //Getto le uniform
   mvLoc = glGetUniformLocation(renderingProgramCar, "mv_matrix");
   projLoc = glGetUniformLocation(renderingProgramCar, "proj_matrix");
+  nLoc = glGetUniformLocation(renderingProgramCar, "norm_matrix");
 
   //Costruisco la pMat
   glfwGetFramebufferSize(window, &width, &height);
@@ -241,6 +342,9 @@ void displayCar(GLFWwindow* window, double currentTime){
   vMat = glm::lookAt(glm::vec3(cameraX, cameraY, cameraZ), glm::vec3(cameraX+lookingDirX, cameraY+lookingDirY, cameraZ+lookingDirZ), glm::vec3(0.0f, 1.0f, 0.0f));
   mvStack.push(vMat);
 
+  //Set up lights
+  currentLightPos = glm::vec3(initialLightLoc.x, initialLightLoc.y, initialLightLoc.z);
+  installLights(vMat, renderingProgramCar);
 
   //Carrozzeria
   mvStack.push(mvStack.top());
@@ -252,12 +356,20 @@ void displayCar(GLFWwindow* window, double currentTime){
   //Spedisco matrici allo shader
   glUniformMatrix4fv(mvLoc, 1, GL_FALSE, glm::value_ptr(mvStack.top()));
   glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(pMat));
+  glUniformMatrix4fv(nLoc, 1, GL_FALSE, glm::value_ptr(invTrMat));
 
   //Associazione VBO
   glBindVertexArray(vao[0]);
   glBindBuffer(GL_ARRAY_BUFFER, vbo0[0]);
   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
   glEnableVertexAttribArray(0);
+
+  glBindBuffer(GL_ARRAY_BUFFER, vbo0[2]);
+  glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
+  glEnableVertexAttribArray(1);
+
+  glEnable(GL_CULL_FACE);
+  glFrontFace(GL_CCW);
   glEnable(GL_DEPTH_TEST);
   glDepthFunc(GL_LEQUAL);
   glDrawArrays(GL_TRIANGLES, 0, carrozzeria.getNumVertices());
@@ -274,12 +386,20 @@ void displayCar(GLFWwindow* window, double currentTime){
   //Spedisco matrici allo shader
   glUniformMatrix4fv(mvLoc, 1, GL_FALSE, glm::value_ptr(mvStack.top()));
   glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(pMat));
+  glUniformMatrix4fv(nLoc, 1, GL_FALSE, glm::value_ptr(invTrMat));
 
   //Associazione VBO
   glBindVertexArray(vao[1]);
   glBindBuffer(GL_ARRAY_BUFFER, vbo1[0]);
   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
   glEnableVertexAttribArray(0);
+
+  glBindBuffer(GL_ARRAY_BUFFER, vbo1[2]);
+  glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
+  glEnableVertexAttribArray(1);
+
+  glEnable(GL_CULL_FACE);
+  glFrontFace(GL_CCW);
   glEnable(GL_DEPTH_TEST);
   glDepthFunc(GL_LEQUAL);
   glDrawArrays(GL_TRIANGLES, 0, ruotadx.getNumVertices());
@@ -292,16 +412,26 @@ void displayCar(GLFWwindow* window, double currentTime){
   mvStack.top() *=glm::rotate(glm::mat4(1.0f), sterzo+carphi+3.14159f, glm::vec3(0, cos(-alpha), -sin(-alpha)));
   mvStack.top() *= glm::scale(glm::mat4(1.0f), glm::vec3( scalecar, scalecar, scalecar ));
 
+  //Build matrix for trasforming vectors
+  invTrMat = glm::transpose(glm::inverse(mvStack.top()));
 
   //Spedisco matrici allo shader
   glUniformMatrix4fv(mvLoc, 1, GL_FALSE, glm::value_ptr(mvStack.top()));
   glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(pMat));
+  glUniformMatrix4fv(nLoc, 1, GL_FALSE, glm::value_ptr(invTrMat));
 
   //Associazione VBO
   glBindVertexArray(vao[1]);
   glBindBuffer(GL_ARRAY_BUFFER, vbo1[0]);
   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
   glEnableVertexAttribArray(0);
+
+  glBindBuffer(GL_ARRAY_BUFFER, vbo1[2]);
+  glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
+  glEnableVertexAttribArray(1);
+
+  glEnable(GL_CULL_FACE);
+  glFrontFace(GL_CCW);
   glEnable(GL_DEPTH_TEST);
   glDepthFunc(GL_LEQUAL);
   glDrawArrays(GL_TRIANGLES, 0, ruotadx.getNumVertices());
@@ -314,16 +444,26 @@ void displayCar(GLFWwindow* window, double currentTime){
   mvStack.top() *=glm::rotate(glm::mat4(1.0f), carphi, glm::vec3(0, cos(alpha), -sin(alpha)));
   mvStack.top() *= glm::scale(glm::mat4(1.0f), glm::vec3( scalecar, scalecar, scalecar ));
 
+  //Build matrix for trasforming vectors
+  invTrMat = glm::transpose(glm::inverse(mvStack.top()));
 
   //Spedisco matrici allo shader
   glUniformMatrix4fv(mvLoc, 1, GL_FALSE, glm::value_ptr(mvStack.top()));
   glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(pMat));
+  glUniformMatrix4fv(nLoc, 1, GL_FALSE, glm::value_ptr(invTrMat));
 
   //Associazione VBO
   glBindVertexArray(vao[1]);
   glBindBuffer(GL_ARRAY_BUFFER, vbo1[0]);
   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
   glEnableVertexAttribArray(0);
+
+  glBindBuffer(GL_ARRAY_BUFFER, vbo1[2]);
+  glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
+  glEnableVertexAttribArray(1);
+
+  glEnable(GL_CULL_FACE);
+  glFrontFace(GL_CCW);
   glEnable(GL_DEPTH_TEST);
   glDepthFunc(GL_LEQUAL);
   glDrawArrays(GL_TRIANGLES, 0, ruotadx.getNumVertices());
@@ -336,16 +476,27 @@ void displayCar(GLFWwindow* window, double currentTime){
   mvStack.top() *=glm::rotate(glm::mat4(1.0f), carphi+3.14159f, glm::vec3(0, cos(-alpha), -sin(-alpha)));
   mvStack.top() *= glm::scale(glm::mat4(1.0f), glm::vec3( scalecar, scalecar, scalecar ));
 
+  //Build matrix for trasforming vectors
+  invTrMat = glm::transpose(glm::inverse(mvStack.top()));
 
   //Spedisco matrici allo shader
   glUniformMatrix4fv(mvLoc, 1, GL_FALSE, glm::value_ptr(mvStack.top()));
   glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(pMat));
+  glUniformMatrix4fv(nLoc, 1, GL_FALSE, glm::value_ptr(invTrMat));
 
   //Associazione VBO
   glBindVertexArray(vao[1]);
   glBindBuffer(GL_ARRAY_BUFFER, vbo1[0]);
   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
   glEnableVertexAttribArray(0);
+
+  glBindBuffer(GL_ARRAY_BUFFER, vbo1[2]);
+  glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
+  glEnableVertexAttribArray(1);
+
+
+  glEnable(GL_CULL_FACE);
+  glFrontFace(GL_CCW);
   glEnable(GL_DEPTH_TEST);
   glDepthFunc(GL_LEQUAL);
   glDrawArrays(GL_TRIANGLES, 0, ruotadx.getNumVertices());
@@ -354,6 +505,87 @@ void displayCar(GLFWwindow* window, double currentTime){
   mvStack.pop();
   mvStack.pop();
 }
+
+void displayColline(GLFWwindow* window, double currentTime){
+  glUseProgram(renderingProgramColline);
+
+  //Getto le uniform
+  mvLoc = glGetUniformLocation(renderingProgramColline, "mv_matrix");
+  projLoc = glGetUniformLocation(renderingProgramColline, "proj_matrix");
+  nLoc = glGetUniformLocation(renderingProgramColline, "norm_matrix");
+
+  //Costruisco la pMat
+  glfwGetFramebufferSize(window, &width, &height);
+  aspect = (float)width / (float)height;
+  pMat = glm::perspective(1.0472f, aspect, 0.1f, 1000.0f); //1.0472 radians = 60 degrees
+
+  //Costruisco la mvMat
+  vMat = glm::lookAt(glm::vec3(cameraX, cameraY, cameraZ), glm::vec3(cameraX+lookingDirX, cameraY+lookingDirY, cameraZ+lookingDirZ), glm::vec3(0.0f, 1.0f, 0.0f));
+  mMat = glm::rotate(glm::mat4(1.0f), (float)(M_PI/2), glm::vec3(0.0f, 1.0f, 0.0f));
+  mMat = glm::translate(mMat, glm::vec3(-10.0f, -0.5f, 0));
+  mMat = glm::scale(mMat, glm::vec3(scalecolline, scalecolline, scalecolline));
+
+  //Set up lights
+  currentLightPos = glm::vec3(initialLightLoc.x, initialLightLoc.y, initialLightLoc.z);
+  installLights(vMat, renderingProgramColline);
+
+  mvMat = vMat * mMat;
+
+  //Build matrix for trasforming vectors
+  invTrMat = glm::transpose(glm::inverse(mvMat));
+
+  //Spedisco matrici allo shader
+  glUniformMatrix4fv(mvLoc, 1, GL_FALSE, glm::value_ptr(mvMat));
+  glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(pMat));
+  glUniformMatrix4fv(nLoc, 1, GL_FALSE, glm::value_ptr(invTrMat));
+
+  //Associazione VBO
+  glBindBuffer(GL_ARRAY_BUFFER, vbo4[0]);
+  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
+  glEnableVertexAttribArray(0);
+
+  glBindBuffer(GL_ARRAY_BUFFER, vbo4[2]);
+  glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
+  glEnableVertexAttribArray(1);
+
+  glEnable(GL_CULL_FACE);
+  glFrontFace(GL_CCW);
+  glEnable(GL_DEPTH_TEST);
+  glDepthFunc(GL_LEQUAL);
+  glDrawArrays(GL_TRIANGLES, 0, colline.getNumVertices());
+}
+
+void installLights(glm::mat4 vMat, GLuint renderingProgram){
+    //Convert light's position to view space and prepare shader data sending
+    lightPosV = glm::vec3(vMat*glm::vec4(currentLightPos, 1.0));
+    lightPos[0] = lightPosV.x;
+    lightPos[1] = lightPosV.y;
+    lightPos[2] = lightPosV.z;
+
+    //get locations
+    globalAmbLoc = glGetUniformLocation(renderingProgram, "globalAmbient");
+    ambLoc = glGetUniformLocation(renderingProgram, "light.ambient");
+    diffLoc = glGetUniformLocation(renderingProgram, "light.diffuse");
+    specLoc = glGetUniformLocation(renderingProgram, "light.specular");
+    posLoc = glGetUniformLocation(renderingProgram, "light.position");
+    mAmbLoc = glGetUniformLocation(renderingProgram, "material.ambient");
+    mDiffLoc = glGetUniformLocation(renderingProgram, "material.diffuse");
+    mSpecLoc = glGetUniformLocation(renderingProgram, "material.specular");
+    mShiLoc = glGetUniformLocation(renderingProgram, "material.shininess");
+
+    //set uniforms
+    glProgramUniform4fv(renderingProgram, globalAmbLoc, 1, globalAmbient);
+    glProgramUniform4fv(renderingProgram, ambLoc, 1, lightAmbient);
+    glProgramUniform4fv(renderingProgram, diffLoc, 1, lightDiffuse);
+    glProgramUniform4fv(renderingProgram, specLoc, 1, lightSpecular);
+    glProgramUniform3fv(renderingProgram, posLoc, 1, lightPos);
+    glProgramUniform4fv(renderingProgram, mAmbLoc, 1, matAmb);
+    glProgramUniform4fv(renderingProgram, mDiffLoc, 1, matDif);
+    glProgramUniform4fv(renderingProgram, mSpecLoc, 1, matSpe);
+    glProgramUniform1f(renderingProgram, mShiLoc, matShi);
+
+}
+
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods){
     //cout<<"KEY:"<<key<<" - "<<glfwGetKeyScancode(key)<<endl;
     /*FrecciaSu : 265
