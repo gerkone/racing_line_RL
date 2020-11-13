@@ -12,7 +12,7 @@ class TrackEnvironment(object):
     State array of 6 elements
     state[0] left distance from track side
     state[1] right distance from track side
-    TODO : state[2] front distance from track side (capped at 100)
+    state[2] front distance from track side (capped at 100)
     state[3] longitudinal velocity
     state[4] transversal velocity
     state[5] angle with track axis
@@ -21,7 +21,7 @@ class TrackEnvironment(object):
     [0] combined Throttle/Break
     [1] steering
     """
-    def __init__(self, dt = 0.01, maxMa=6, maxDelta=1, sections=100, render = True, videogame = True):
+    def __init__(self, width = 1, dt = 0.01, maxMa=6, maxDelta=1, render = True, videogame = True, eps = 0.5, max_front = 10):
         self.car = Vehicle(maxMa, maxDelta)
         self.dt = dt
         self.n_states = 6
@@ -29,25 +29,21 @@ class TrackEnvironment(object):
         #[Break/Throttle], [Steering]
         self.action_boundaries = [[-1,1], [-1,1]]
         # track width
-        self.width = 5
+        self.width = width
         # load track array
         self._track = np.load("track_4387235659010134370.npy")
-        # mapping function: divide the track vertically in sections
-        # reduce the closest point search to only a couple of points in the same section
-        self._leftmost = min([x for x,_ in self._track])
-        track_extension = max([x for x,_ in self._track]) - self._leftmost
-        self._section_frame = (track_extension) / sections
-        self._sections = sections
-        # discrete mapping between x values and candidate nearest points
-        self._section_mapping = [[] for _ in range(sections)]
-        for track_index, q in enumerate(self._track):
-            self._section_mapping[self._sectionMapper(q)].append(track_index)
-        # message passing connetion
+
+        # rangefinder tolerance
+        self.eps = eps
+        # rangefinder distance cap
+        self.max_front = max_front
+
         self._render = render
-        # input from the rendering program mode
+        # message passing connetion
         if self._render:
             self._videogame = videogame
         if self._render:
+            # input from the rendering program mode
             import zmq
             context = zmq.Context()
             self._socket = context.socket(zmq.REP)
@@ -56,44 +52,46 @@ class TrackEnvironment(object):
             # wait for visualizer client ack
             self._socket.recv()
 
-    def _sectionMapper(self, q):
-        """
-        return the index of the relative frame in the mapping
-        """
-        index = (q[0] - self._leftmost) // self._section_frame
-        if(index >= self._sections):
-            index = self._sections - 1
-        if(index < 0):
-            index = 0
-        return int(index)
-
     def _nearest_point(self):
         """
         return the index in the track array of the nearest point to the current car position
         """
-        carpos = self.car.getPosition()
-        offset = 0
-        candidates = self._section_mapping[self._sectionMapper(carpos)]
-        # if there are no points in the selected session search around it until some points are found
-        while(not candidates):
-            offset+=1
-            inner_index = min(self._sectionMapper(carpos) - offset, 0)
-            outer_index = min(self._sectionMapper(carpos) + offset, self._sections - 1)
-            candidates = [*self._section_mapping[inner_index],
-            *self._section_mapping[outer_index]]
-        return min(candidates, key = lambda i : self._dist(self._track[i]))
+        return min(range(len(self._track)), key = lambda i : self._dist(self._track[i]))
 
-    def _dist(self, q_track):
+    def _nearest_point_line(self, angle, q):
+        """
+        return the index in the track array of the nearest point to the line
+        """
+        # ax + by + c
+        a = tan(angle)
+        b = -1
+        c = -a * q[0] + q[1]
+
+        def dist_line(p, a, b, c):
+            """
+            distance between point and line
+            """
+            return abs(a * p[0] + b * p[1] + c)/sqrt(pow(a, 2) + pow(b, 2))
+        # TODO distance projection to the track border ( now middle line )
+        closest_point = min(range(len(self._track)), key = lambda i : dist_line(self._track[i], a, b, c))
+        # introduce tolerance
+        if dist_line(self._track[closest_point], a, b, c) > self.eps:
+            return None
+        else:
+            return closest_point
+
+    def _dist(self, q_track, q_point = None):
         """
         pithagorean distance between two points
         """
-        carpos = self.car.getPosition()
-        return sqrt(pow(carpos[0] - q_track[0], 2) + pow(carpos[1] - q_track[1], 2))
+        if(q_point is None):
+            q_point = self.car.getPosition()
+        return sqrt(pow(q_point[0] - q_track[0], 2) + pow(q_point[1] - q_track[1], 2))
 
     def _angle2points(self, q1, q2):
         return atan((q2[1] - q1[1]) / (q2[0] - q1[0]))
 
-    def _insideTrack(self, q):
+    def _inside_track(self, q):
         """
         ray-casting algorithm for point in polygon
         """
@@ -113,13 +111,20 @@ class TrackEnvironment(object):
         # odd hits = inside, even hits inside
         return hits % 2
 
-    def _getSensors(self, nearest_point_index):
+    def _get_track_sensors(self, nearest_point_index):
         """
         return distances and angle sensory values
         """
+        # current track angle
+        q2 = self._track[nearest_point_index]
+        # take a couple of points before to avoid superposition
+        q1 = self._track[(nearest_point_index - 2) % len(self._track)]
+        track_angle = self._angle2points(q1, q2)
+        # distance to track closest point
         carpos = self.car.getPosition()
         d = self._dist(self._track[nearest_point_index])
-        if self._insideTrack(carpos):
+        # sensor 0 and 1 -- left-right rangefinders
+        if self._inside_track(carpos):
             # inside
             d_dx = d + self.width
             d_sx = self.width - d
@@ -127,13 +132,19 @@ class TrackEnvironment(object):
             # outside
             d_dx = self.width - d
             d_sx = d + self.width
-
-        q2 = self._track[nearest_point_index]
-        # take a couple of points before to avoid superposition
-        q1 = self._track[(nearest_point_index - 3) % len(self._track)]
-        track_angle = self._angle2points(q1, q2)
-        angle = self.car.getAngles()[0] - track_angle
-        return (d_sx, d_dx, 0, angle)
+        # sensor 5 -- track-relative angle
+        car_angle = self.car.getAngles()[0]
+        angle = car_angle - track_angle
+        # sensor 2 -- front rangefinder
+        closest_point = self._nearest_point_line(car_angle, carpos)
+        if closest_point is not None:
+            track_front = self._track[closest_point]
+            d_front = self._dist(track_front)
+            # cap front distance to max_front
+            d_front = min(d_front, self.max_front)
+        else:
+            d_front = self.max_front
+        return (d_sx, d_dx, d_front, angle)
 
 
     def _transition(self, action, nearest_point_index):
@@ -147,7 +158,7 @@ class TrackEnvironment(object):
         self.car.integrate(self.dt)
         #get new state sensor values
         state_new = np.zeros(shape = self.n_states)
-        state_new[0], state_new[1], state_new[2], state_new[5] = self._getSensors(nearest_point_index)
+        state_new[0], state_new[1], state_new[2], state_new[5] = self._get_track_sensors(nearest_point_index)
         state_new[3], state_new[4] = self.car.getVelocities()
         return state_new
 
@@ -161,7 +172,7 @@ class TrackEnvironment(object):
             reward -= 100
         return reward
 
-    def _isTerminal(self, nearest_point_index):
+    def _is_terminal(self, nearest_point_index):
         """
         state is terminal if car has crashed
         (distance from track centre is greater than its width)
@@ -176,7 +187,7 @@ class TrackEnvironment(object):
         """
         nearest_point_index = self._nearest_point()
         state_new = self._transition(action, nearest_point_index)
-        terminal = self._isTerminal(nearest_point_index)
+        terminal = self._is_terminal(nearest_point_index)
         reward = self._reward(state_new[3], state_new[5], terminal)
         return state_new, reward, terminal
 
@@ -205,7 +216,7 @@ class TrackEnvironment(object):
             # wait for confirmation
             self._socket.recv()
 
-    def getActionVideogame(self):
+    def get_action_videogame(self):
         if self._videogame:
             #wait until reciving data from client
             #formatted as {acc/dec}/{steering}
@@ -262,6 +273,6 @@ while True:
             # Triggers
             throttle = (analog_keys[5] + 1) / 2 - (analog_keys[2] + 1) / 2
 
-    print(o.step([throttle, steering])[0][0:2])
+    print(o.step([throttle, steering])[0][2])
     o.render()
-    # o.getActionVideogame()
+    # o.get_action_videogame()
