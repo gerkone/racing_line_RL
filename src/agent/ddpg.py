@@ -4,10 +4,10 @@ from datetime import datetime
 import numpy as np
 import tensorflow as tf
 
-from utils.replay_buffer import ReplayBuffer
-from utils.action_noise import OUActionNoise
-from network.actor import Actor
-from network.critic import Critic
+from agent.utils.replay_buffer import ReplayBuffer
+from agent.utils.action_noise import OUActionNoise
+from agent.network.actor import Actor
+from agent.network.critic import Critic
 
 class Agent(object):
     """

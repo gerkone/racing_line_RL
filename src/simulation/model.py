@@ -13,8 +13,8 @@ class Vehicle(object):
         self._dotpsi = 0
         self._alpha = 0 #wheel rolling angle
         self._Ma = 0    #Motor accelleration
-        self._Vx = 0
-        self._Vy = 0
+        self.Vx = 0
+        self.Vy = 0
         self._maxMa = maxMa
         self._maxDelta = maxDelta
         self._massa = 50 #vehicle mass

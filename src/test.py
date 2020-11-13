@@ -1,9 +1,11 @@
-from ddpg import Agent
+from agent.ddpg import Agent
 import gym
 from gym import wrappers
 import os
 import numpy as np
 import matplotlib.pyplot as plt
+
+from simulation.environment import TrackEnvironment
 
 N_EPISODES = 1000
 CHECKPOINT = 100
@@ -11,16 +13,15 @@ CHECKPOINT = 100
 def main():
     #TODO args to load model
     #get simulation environment
-    env = gym.make("Pendulum-v0")
-    state_dims = [len(env.observation_space.low)]
-    action_dims = [len(env.action_space.low)]
-    action_boundaries = [env.action_space.low, env.action_space.high]
-    print(action_boundaries)
+    env = TrackEnvironment("../tracks/track_4387235659010134370.npy", render = True, width = 1.5)
+    state_dims = [env.n_states]
+    action_dims = [env.n_actions]
+    action_boundaries = [-1,1]
     #create agent with environment parameters
     agent = Agent(state_dims = state_dims, action_dims = action_dims,
-                action_boundaries = action_boundaries, actor_lr = 1e-3,
-                critic_lr = 4*1e-3, batch_size = 64, gamma = 0.99, rand_steps = 2,
-                buf_size = int(1e6), tau = 0.001, fcl1_size = 400, fcl2_size = 600)
+                action_boundaries = action_boundaries, actor_lr = 1e-6,
+                critic_lr = 4*1e-6, batch_size = 64, gamma = 0.99, rand_steps = 0,
+                buf_size = int(1e6), tau = 0.001, fcl1_size = 256, fcl2_size = 256)
     np.random.seed(0)
     scores = []
     #training loop: call remember on predicted states and train the models
@@ -34,7 +35,7 @@ def main():
             #predict new action
             action = agent.get_action(state, i)
             #perform the transition according to the predicted action
-            state_new, reward, terminal, info = env.step(action)
+            state_new, reward, terminal = env.step(action)
             #store the transaction in the memory
             agent.remember(state, state_new, action, reward, terminal)
             #adjust the weights according to the new transaction

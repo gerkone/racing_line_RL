@@ -3,9 +3,8 @@ import numpy as np
 import time
 import os
 import re
-import pygame
 
-from model import Vehicle
+from simulation.model import Vehicle
 
 class TrackEnvironment(object):
     """
@@ -21,25 +20,38 @@ class TrackEnvironment(object):
     [0] combined Throttle/Break
     [1] steering
     """
-    def __init__(self, width = 1, dt = 0.01, maxMa=6, maxDelta=1, render = True, videogame = True, eps = 0.5, max_front = 10):
+    def __init__(self, trackpath, width = 1, dt = 0.01, maxMa=6, maxDelta=1,
+                    render = True, videogame = True, eps = 0.5, max_front = 10,
+                    min_speed = 1e-2, bored_after = 20):
+        # vehicle model settings
         self.car = Vehicle(maxMa, maxDelta)
         self.dt = dt
-        self.n_states = 6
+
+        # state/action settings
+        self.n_states = 5
         self.n_actions = 2
         #[Break/Throttle], [Steering]
         self.action_boundaries = [[-1,1], [-1,1]]
+
+        # track settings
         # track width
         self.width = width
         # load track array
-        self._track = np.load("track_4387235659010134370.npy")
+        self._track = np.load(trackpath)
 
+        # agent/training parameters
+        self._still = 0
+        self._min_speed = min_speed
+        self._bored_after = bored_after
+
+        # sensors parameters
         # rangefinder tolerance
         self.eps = eps
         # rangefinder distance cap
         self.max_front = max_front
 
-        self._render = render
         # message passing connetion
+        self._render = render
         if self._render:
             self._videogame = videogame
         if self._render:
@@ -50,7 +62,9 @@ class TrackEnvironment(object):
             self._socket.bind("tcp://*:55555")
             # TODO fork visualizer
             # wait for visualizer client ack
+            print("Waiting on port 55555 for visualizer handshake...")
             self._socket.recv()
+            print("Communication OK!")
 
     def _nearest_point(self):
         """
@@ -153,12 +167,15 @@ class TrackEnvironment(object):
         """
         #update model paramters with new action
         self.car.setAcceleration(action[0])
-        self.car.setSteering(action[1])
+        self.car.setSteering(action[1] / 10)
         #step forward model by dt
         self.car.integrate(self.dt)
         #get new state sensor values
         state_new = np.zeros(shape = self.n_states)
-        state_new[0], state_new[1], state_new[2], state_new[5] = self._get_track_sensors(nearest_point_index)
+        # state_new[0], state_new[1], state_new[2], state_new[5] = self._get_track_sensors(nearest_point_index)
+        # state_new[3], state_new[4] = self.car.getVelocities()
+        state_new[0], state_new[1] = self._get_track_sensors(nearest_point_index)[0:2]
+        state_new[2] = self.car.getAngles()[0]
         state_new[3], state_new[4] = self.car.getVelocities()
         return state_new
 
@@ -166,11 +183,29 @@ class TrackEnvironment(object):
         """
         reward function as longitudinal speed along the track parallel
         """
-        reward = 0
         reward = speed_x * cos(angle)
+        # discourage standing still (afraid of barriers)
+        if(reward < self._min_speed):
+            reward = -10
         if(terminal):
-            reward -= 100
+            reward -= 1000
         return reward
+
+    def _bored(self):
+        """
+        terminate if car was still too long
+        """
+        if sqrt(pow(self.car.getVelocities()[0], 2) + pow(self.car.getVelocities()[1], 2)) < self._min_speed:
+            if self._still > self._bored_after:
+                self._still = 0
+                return True
+            else:
+                self._still += 1
+        else:
+            self._still = 0
+        return False
+
+
 
     def _is_terminal(self, nearest_point_index):
         """
@@ -179,7 +214,7 @@ class TrackEnvironment(object):
         """
         if self._dist(self._track[nearest_point_index]) > self.width:
             return True
-        return False
+        return self._bored()
 
     def step(self, action):
         """
@@ -188,7 +223,7 @@ class TrackEnvironment(object):
         nearest_point_index = self._nearest_point()
         state_new = self._transition(action, nearest_point_index)
         terminal = self._is_terminal(nearest_point_index)
-        reward = self._reward(state_new[3], state_new[5], terminal)
+        reward = self._reward(state_new[3], state_new[2], terminal)
         return state_new, reward, terminal
 
     def reset(self):
@@ -200,6 +235,11 @@ class TrackEnvironment(object):
         q2 = self._track[3]
         track_angle = self._angle2points(q1, q2)
         self.car.reset(q1[0], q1[1], track_angle)
+        state_new = np.zeros(shape = self.n_states)
+        state_new[0], state_new[1] = self.car.getPosition()
+        state_new[2] = self.car.getAngles()[0]
+        state_new[3], state_new[4] = self.car.getVelocities()
+        return state_new
 
     def render(self):
         """
@@ -245,34 +285,36 @@ class TrackEnvironment(object):
             #step forward model by dt
             self.car.integrate(self.dt)
 
-pygame.init()
-#Initialize controller
-joysticks = []
-for i in range(pygame.joystick.get_count()):
-    joysticks.append(pygame.joystick.Joystick(i))
-for joystick in joysticks:
-    joystick.init()
-# 0: Left analog horizonal
-# 2: Left Trigger, 5: Right Trigger
-analog_keys = {0:0, 1:0, 2:0, 3:0, 4:-1, 5: -1 }
+if __name__ == "__main__":
+    import pygame
+    pygame.init()
+    #Initialize controller
+    joysticks = []
+    for i in range(pygame.joystick.get_count()):
+        joysticks.append(pygame.joystick.Joystick(i))
+    for joystick in joysticks:
+        joystick.init()
+    # 0: Left analog horizonal
+    # 2: Left Trigger, 5: Right Trigger
+    analog_keys = {0:0, 1:0, 2:0, 3:0, 4:-1, 5: -1 }
 
-o = TrackEnvironment()
-o.reset()
-while True:
-    for event in pygame.event.get():
-        steering = 0
-        throttle = 0
-        if event.type == pygame.QUIT:
-            running = False
-        if event.type == pygame.KEYDOWN:
-            pass
-        if event.type == pygame.JOYAXISMOTION:
-            analog_keys[event.axis] = event.value
-            # Horizontal Analog
-            steering = analog_keys[0]
-            # Triggers
-            throttle = (analog_keys[5] + 1) / 2 - (analog_keys[2] + 1) / 2
+    o = TrackEnvironment()
+    o.reset()
+    while True:
+        for event in pygame.event.get():
+            steering = 0
+            throttle = 0
+            if event.type == pygame.QUIT:
+                running = False
+            if event.type == pygame.KEYDOWN:
+                pass
+            if event.type == pygame.JOYAXISMOTION:
+                analog_keys[event.axis] = event.value
+                # Horizontal Analog
+                steering = analog_keys[0]
+                # Triggers
+                throttle = (analog_keys[5] + 1) / 2 - (analog_keys[2] + 1) / 2
 
-    print(o.step([throttle, steering])[0][2])
-    o.render()
-    # o.get_action_videogame()
+        print(o.step([throttle, steering])[0][2])
+        o.render()
+        # o.get_action_videogame()
