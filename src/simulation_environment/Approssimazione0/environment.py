@@ -1,6 +1,5 @@
 from math import cos, sin, atan, tan, sqrt, floor
 import numpy as np
-from scipy.spatial import Delaunay
 import time
 import os
 import re
@@ -74,7 +73,6 @@ class TrackEnvironment(object):
         """
         carpos = self.car.getPosition()
         offset = 0
-        print(self._sectionMapper(carpos), len(self._section_mapping))
         candidates = self._section_mapping[self._sectionMapper(carpos)]
         # if there are no points in the selected session search around it until some points are found
         while(not candidates):
@@ -95,17 +93,25 @@ class TrackEnvironment(object):
     def _angle2points(self, q1, q2):
         return atan((q2[1] - q1[1]) / (q2[0] - q1[0]))
 
-    def _inTrack(self, q):
+    def _insideTrack(self, q):
         """
-        return true if point is inside the track middle line
+        ray-casting algorithm for point in polygon
         """
-        try:
-            if not isinstance(self._triangulated, Delaunay):
-                self._triangulated = Delaunay(self._track)
-        except AttributeError:
-            self._triangulated = Delaunay(self._track)
-
-        return self._triangulated.find_simplex(q) >= 0
+        i = 0
+        j = len(self._track) - 1
+        hits = 0
+        while i < len(self._track):
+            xi = self._track[i][0]
+            yi = self._track[i][1]
+            xj = self._track[j][0]
+            yj = self._track[j][1]
+            j = i
+            i += 1
+            intersect = ((yi > q[1]) != (yj > q[1])) and (q[0] < (xj - xi) * (q[1] - yi) / (yj - yi) + xi)
+            if (intersect):
+                hits += 1
+        # odd hits = inside, even hits inside
+        return hits % 2
 
     def _getSensors(self, nearest_point_index):
         """
@@ -113,7 +119,7 @@ class TrackEnvironment(object):
         """
         carpos = self.car.getPosition()
         d = self._dist(self._track[nearest_point_index])
-        if self._inTrack(carpos):
+        if self._insideTrack(carpos):
             # inside
             d_dx = d + self.width
             d_sx = self.width - d
@@ -229,7 +235,6 @@ class TrackEnvironment(object):
             self.car.integrate(self.dt)
 
 pygame.init()
-LEFT, RIGHT, UP, DOWN = False, False, False, False
 #Initialize controller
 joysticks = []
 for i in range(pygame.joystick.get_count()):
@@ -257,6 +262,6 @@ while True:
             # Triggers
             throttle = (analog_keys[5] + 1) / 2 - (analog_keys[2] + 1) / 2
 
-    print(o.step([throttle, steering])[0])
+    print(o.step([throttle, steering])[0][0:2])
     o.render()
     # o.getActionVideogame()
