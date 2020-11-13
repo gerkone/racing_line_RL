@@ -134,7 +134,7 @@ class Vehicle(object):
         self._Ma = MaCoff*self._maxMa
 
     def getVelocities(self):
-        return [self._Vx, self._Vy]
+        return [self.Vx, self.Vy]
 
     def getPosition(self):
         return [self._x, self._y]

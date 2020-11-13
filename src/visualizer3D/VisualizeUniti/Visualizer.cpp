@@ -87,6 +87,7 @@ float * matDif = goldDiffuse();
 float * matSpe = goldSpecular();
 float matShi = goldShininess();
 
+
 //ANGOLI
 float alpha = 0; //Angolo di moto delle ruote
 float sterzo = 0; //Angolo ruote rispetto alla carrozzeria
@@ -276,6 +277,10 @@ void display (GLFWwindow* window, double currentTime){
 }
 
 void displayTrack(GLFWwindow* window, double currentTime){
+  matAmb = blackRubberAmbient();
+  matDif = blackRubberDiffuse();
+  matSpe = blackRubberSpecular();
+  matShi = blackRubberShininess();
   glUseProgram(renderingProgramTrack);
 
   //Getto le uniform
@@ -326,6 +331,10 @@ void displayTrack(GLFWwindow* window, double currentTime){
 }
 
 void displayCar(GLFWwindow* window, double currentTime){
+  matAmb = rubyAmbient();
+  matDif = rubyDiffuse();
+  matSpe = rubySpecular();
+  matShi = rubyShininess();
   glUseProgram(renderingProgramCar);
 
   //Getto le uniform
@@ -507,6 +516,10 @@ void displayCar(GLFWwindow* window, double currentTime){
 }
 
 void displayColline(GLFWwindow* window, double currentTime){
+  matAmb = turquoiseAmbient();
+  matDif = turquoiseDiffuse();
+  matSpe = turquoiseSpecular();
+  matShi = turquoiseShininess();
   glUseProgram(renderingProgramColline);
 
   //Getto le uniform
@@ -767,33 +780,33 @@ int main(void){
         sterzo = -values.at(3);
         //cout << carLocX << ", " << carLocY << ", " << carphi << ", " << sterzo << endl;
         // send confirmation
-        socket.send(zmq::buffer(ack), zmq::send_flags::none);
+        //socket.send(zmq::buffer(ack), zmq::send_flags::none);
 
         //send inputdata
-        // stringstream inputdata;
-        // if (!accellerate || !decellerate){
-        //   if (accellerate){
-        //     inputdata << 1 << "/";
-        //   }else if (decellerate){
-        //     inputdata << 2 << "/";
-        //   }else{
-        //     inputdata << 0 << "/";
-        //   }
-        // }else{
-        //   inputdata << 0 << "/";
-        // }
-        // if (!steeringleft || !steeringright){
-        //   if (steeringleft){
-        //     inputdata << 1;
-        //   } else if (steeringright){
-        //     inputdata << 2;
-        //   }else{
-        //     inputdata << 0;
-        //   }
-        // }else{
-        //   inputdata << 0;
-        // }
-        // socket.send(zmq::buffer(inputdata.str()), zmq::send_flags::none);
+        stringstream inputdata;
+        if (!accellerate || !decellerate){
+          if (accellerate){
+            inputdata << 1 << "/";
+          }else if (decellerate){
+            inputdata << 2 << "/";
+          }else{
+            inputdata << 0 << "/";
+          }
+        }else{
+          inputdata << 0 << "/";
+        }
+        if (!steeringleft || !steeringright){
+          if (steeringleft){
+            inputdata << 1;
+          } else if (steeringright){
+            inputdata << 2;
+          }else{
+            inputdata << 0;
+          }
+        }else{
+          inputdata << 0;
+        }
+        socket.send(zmq::buffer(inputdata.str()), zmq::send_flags::none);
 
 
         //Clear Variables

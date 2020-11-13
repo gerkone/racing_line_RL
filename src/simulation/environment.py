@@ -4,7 +4,7 @@ import time
 import os
 import re
 
-from simulation.model import Vehicle
+from model import Vehicle
 
 class TrackEnvironment(object):
     """
@@ -298,7 +298,7 @@ if __name__ == "__main__":
     # 2: Left Trigger, 5: Right Trigger
     analog_keys = {0:0, 1:0, 2:0, 3:0, 4:-1, 5: -1 }
 
-    o = TrackEnvironment()
+    o = TrackEnvironment("/home/enrico/Documenti/Programmazione/racing_line_RL/src/simulation/Approssimazione0/track_4387235659010134370.npy")
     o.reset()
     while True:
         for event in pygame.event.get():

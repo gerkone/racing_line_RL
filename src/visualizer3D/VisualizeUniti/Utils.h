@@ -125,3 +125,54 @@ float* goldSpecular(){
 float goldShininess(){
   return 51.2f;
 }
+
+//RUBY Material - ambien, diffuse, specular and shininess
+float* rubyAmbient(){
+  static float a[4] = {0.1745, 0.01175, 0.01175, 0.55};
+  return (float*)a;
+}
+float* rubyDiffuse(){
+  static float a[4] = {0.61424, 0.04136, 0.04136, 0.55};
+  return (float*)a;
+}
+float* rubySpecular(){
+  static float a[4] = {0.727811, 0.626959, 0.626959, 0.55};
+  return (float*)a;
+}
+float rubyShininess(){
+  return 10;
+}
+
+//BLACK RUBBER Material - ambien, diffuse, specular and shininess
+float* blackRubberAmbient(){
+  static float a[4] = {0.02, 0.02, 0.02, 1};
+  return (float*)a;
+}
+float* blackRubberDiffuse(){
+  static float a[4] = {0.01, 0.01, 0.01, 1};
+  return (float*)a;
+}
+float* blackRubberSpecular(){
+  static float a[4] = {0.4, 0.4, 0.4, 1};
+  return (float*)a;
+}
+float blackRubberShininess(){
+  return 10;
+}
+
+//TURQUOISE Material - ambien, diffuse, specular and shininess
+float* turquoiseAmbient(){
+  static float a[4] = {0.1, 0.18725, 0.1745, 0.8};
+  return (float*)a;
+}
+float* turquoiseDiffuse(){
+  static float a[4] = {0.396, 0.74151, 0.69102, 0.8};
+  return (float*)a;
+}
+float* turquoiseSpecular(){
+  static float a[4] = {0.297254, 0.30829, 0.306678, 0.8};
+  return (float*)a;
+}
+float turquoiseShininess(){
+  return 12.8;
+}
