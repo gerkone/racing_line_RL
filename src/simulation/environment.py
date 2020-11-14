@@ -4,7 +4,7 @@ import time
 import os
 import re
 
-from model import Vehicle
+from simulation.model import Vehicle
 
 class TrackEnvironment(object):
     """
@@ -22,7 +22,7 @@ class TrackEnvironment(object):
     """
     def __init__(self, trackpath, width = 1, dt = 0.01, maxMa=6, maxDelta=1,
                     render = True, videogame = True, eps = 0.5, max_front = 10,
-                    min_speed = 1e-2, bored_after = 20):
+                    min_speed = 5 * 1e-2, bored_after = 50):
         # vehicle model settings
         self.car = Vehicle(maxMa, maxDelta)
         self.dt = dt
@@ -174,19 +174,22 @@ class TrackEnvironment(object):
         state_new = np.zeros(shape = self.n_states)
         # state_new[0], state_new[1], state_new[2], state_new[5] = self._get_track_sensors(nearest_point_index)
         # state_new[3], state_new[4] = self.car.getVelocities()
-        state_new[0], state_new[1] = self._get_track_sensors(nearest_point_index)[0:2]
-        state_new[2] = self.car.getAngles()[0]
+        sensors = self._get_track_sensors(nearest_point_index)
+        state_new[0] = sensors[0]
+        state_new[1] = sensors[1]
+        state_new[2] = sensors[3]
         state_new[3], state_new[4] = self.car.getVelocities()
         return state_new
 
-    def _reward(self, speed_x, angle, terminal):
+    def _reward(self, speed_x, angle, terminal, index):
         """
         reward function as longitudinal speed along the track parallel
         """
-        reward = speed_x * cos(angle)
-        # discourage standing still (afraid of barriers)
+        reward = speed_x * cos(angle) + 20 * (index / len(self._track))
+        # discourage standing still (lazy, afraid of barriers)
         if(reward < self._min_speed):
             reward = -10
+        # crashed or bored
         if(terminal):
             reward -= 1000
         return reward
@@ -223,7 +226,7 @@ class TrackEnvironment(object):
         nearest_point_index = self._nearest_point()
         state_new = self._transition(action, nearest_point_index)
         terminal = self._is_terminal(nearest_point_index)
-        reward = self._reward(state_new[3], state_new[2], terminal)
+        reward = self._reward(state_new[3], state_new[2], terminal, nearest_point_index)
         return state_new, reward, terminal
 
     def reset(self):

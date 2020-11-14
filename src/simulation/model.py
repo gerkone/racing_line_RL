@@ -15,8 +15,8 @@ class Vehicle(object):
         self._dotpsi = 0
         self._alpha = 0 #wheel rolling angle
         self._Ma = 0    #Motor accelleration
-        self._Vx = 0
-        self._Vy = 0
+        self.Vx = 0
+        self.Vy = 0
         self._maxMa = maxMa
         self._maxDelta = maxDelta
         self._massa = 10 #vehicle mass
@@ -134,7 +134,7 @@ class Vehicle(object):
         self._Ma = MaCoff*self._maxMa
 
     def getVelocities(self):
-        return [self._Vx, self._Vy]
+        return [self.Vx, self.Vy]
 
     def getPosition(self):
         return [self._x, self._y]
