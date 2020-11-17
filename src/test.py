@@ -1,16 +1,14 @@
-from agent.ddpg import Agent
-import gym
-from gym import wrappers
-import os
-import numpy as np
-import matplotlib.pyplot as plt
+import os, sys
 
-from simulation.environment import TrackEnvironment
+from simulation.environment import TrackEnvironment, manual
 
 N_EPISODES = 1000
 CHECKPOINT = 100
 
 def main():
+    import numpy as np
+    import matplotlib.pyplot as plt
+    from agent.ddpg import Agent
     #TODO args to load model
     #get simulation environment
     env = TrackEnvironment("../tracks/track_4387235659010134370.npy", render = True, width = 1.5)
@@ -57,7 +55,14 @@ def main():
 
 
 if __name__ == "__main__":
-    #tell tensorflow to train with GPU 0
-    os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-    os.environ["CUDA_VISIBLE_DEVICES"] = "0"
-    main()
+
+    if("manual" in sys.argv):
+        while True:
+            print("starting in manual mode...\n\n")
+            manual("../tracks/track_4387235659010134370.npy")
+    else:
+        #tell tensorflow to train with GPU 0
+        os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+        os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+        print("starting in autonomous mode...\n\n")
+        main()

@@ -146,6 +146,9 @@ class TrackEnvironment(object):
             # outside
             d_dx = self.width - d
             d_sx = d + self.width
+        # bound the distances for when outside the track
+        d_sx = min(max(0, d_sx), self.width * 2)
+        d_dx = min(max(0, d_dx), self.width * 2)
         # sensor 5 -- track-relative angle
         car_angle = self.car.getAngles()[0]
         angle = car_angle - track_angle
@@ -166,8 +169,8 @@ class TrackEnvironment(object):
         apply the action on the model and return sensory (state) value
         """
         #update model paramters with new action
-        self.car.setAcceleration(action[0])
-        self.car.setSteering(action[1] / 10)
+        self.car.setAcceleration(action[0] )
+        self.car.setSteering(action[1] / 3)
         #step forward model by dt
         self.car.integrate(self.dt)
         #get new state sensor values
@@ -288,7 +291,7 @@ class TrackEnvironment(object):
             #step forward model by dt
             self.car.integrate(self.dt)
 
-if __name__ == "__main__":
+def manual(path):
     import pygame
     pygame.init()
     #Initialize controller
@@ -301,7 +304,7 @@ if __name__ == "__main__":
     # 2: Left Trigger, 5: Right Trigger
     analog_keys = {0:0, 1:0, 2:0, 3:0, 4:-1, 5: -1 }
 
-    o = TrackEnvironment("/home/enrico/Documenti/Programmazione/racing_line_RL/src/simulation/Approssimazione0/track_4387235659010134370.npy")
+    o = TrackEnvironment(path)
     o.reset()
     while True:
         for event in pygame.event.get():
@@ -318,6 +321,9 @@ if __name__ == "__main__":
                 # Triggers
                 throttle = (analog_keys[5] + 1) / 2 - (analog_keys[2] + 1) / 2
 
-        print(o.step([throttle, steering])[0][2])
+        print(o.step([throttle, steering])[0])
         o.render()
         # o.get_action_videogame()
+
+if __name__ == "__main__":
+    manual()
