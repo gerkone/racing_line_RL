@@ -22,7 +22,7 @@ class TrackEnvironment(object):
     """
     def __init__(self, trackpath, width = 1, dt = 0.01, maxMa=6, maxDelta=1,
                     render = True, videogame = True, eps = 0.5, max_front = 10,
-                    min_speed = 5 * 1e-2, bored_after = 50, discrete = False, discretization_steps = 3):
+                    min_speed = 5 * 1e-3, bored_after = 50, discrete = False, discretization_steps = 3):
         # vehicle model settings
         self.car = Vehicle(maxMa, maxDelta)
         self.dt = dt
@@ -198,10 +198,10 @@ class TrackEnvironment(object):
         """
         reward function as longitudinal speed along the track parallel
         """
-        reward = speed_x * cos(angle) + 20 * (index / len(self._track))
+        reward = 20 * (index / len(self._track)) #+ speed_x * cos(angle)
         # discourage standing still (lazy, afraid of barriers)
         if(reward < self._min_speed):
-            reward = -10
+            reward = -1
         # crashed or bored
         if(terminal):
             reward -= 1000

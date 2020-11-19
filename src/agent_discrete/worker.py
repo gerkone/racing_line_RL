@@ -71,7 +71,7 @@ class WorkerAgent(Thread):
                 # get action according to prediction
                 action = np.random.choice(*self.action_dims, p = probs[0])
 
-                next_state, reward, done, _ = self.env.step(action)
+                next_state, reward, done = self.env.step(action)
 
                 state = np.reshape(state, [1, *self.state_dims])
                 action = np.reshape(action, [1, 1])
