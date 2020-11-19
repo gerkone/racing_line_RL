@@ -22,7 +22,7 @@ class TrackEnvironment(object):
     """
     def __init__(self, trackpath, width = 1, dt = 0.01, maxMa=6, maxDelta=1,
                     render = True, videogame = True, eps = 0.5, max_front = 10,
-                    min_speed = 5 * 1e-2, bored_after = 50, discrete = False, discretization_steps = 2):
+                    min_speed = 5 * 1e-2, bored_after = 50, discrete = False, discretization_steps = 3):
         # vehicle model settings
         self.car = Vehicle(maxMa, maxDelta)
         self.dt = dt
@@ -40,7 +40,7 @@ class TrackEnvironment(object):
             # discrete action setting
             self.discretization_steps = discretization_steps
             # 2 steps for throttle, n steps for steering
-            self.n_actions = 2 * self.discretization_steps
+            self.n_actions = 3 * self.discretization_steps
 
         # track settings
         # track width
@@ -230,10 +230,20 @@ class TrackEnvironment(object):
         if (discrete_action == 0):
             return [-1, -1]
         elif (discrete_action == 1):
-            return [-1, 1]
+            return [-1, 0]
         elif (discrete_action == 2):
-            return [1, -1]
+            return [-1, 1]
         elif (discrete_action == 3):
+            return [0, -1]
+        elif (discrete_action == 4):
+            return [0, 0]
+        elif (discrete_action == 5):
+            return [0, 1]
+        elif (discrete_action == 6):
+            return [1, -1]
+        elif (discrete_action == 7):
+            return [1, 0]
+        elif (discrete_action == 8):
             return [1, 1]
 
     def _is_terminal(self, nearest_point_index):
