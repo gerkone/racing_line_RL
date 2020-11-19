@@ -41,12 +41,12 @@ class Critic(object):
         model = Model(input_layer, output)
         return model
 
-    def train(self, states, q_value):
+    def train(self, states, td_target):
         with tf.GradientTape() as tape:
-            q_value = self.model(states, training = True)
-            loss = self.compute_loss(q_value, tf.stop_gradient(q_value))
+            predicted_value = self.model(states, training = True)
+            loss = self.compute_loss(predicted_value, tf.stop_gradient(td_target))
         gradient = tape.gradient(loss, self.model.trainable_variables)
         self.optimizer.apply_gradients(zip(gradient, self.model.trainable_variables))
 
-    def compute_loss(self, predicted_actions, q_value):
-        return MSE(predicted_actions, q_value)
+    def compute_loss(self, predicted_value, td_target):
+        return MSE(td_target, predicted_value)

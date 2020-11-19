@@ -44,15 +44,15 @@ class WorkerAgent(Thread):
         self.buffer = ReplayBuffer(batch_size, state_dims, action_dims)
 
 
-    def get_q_target(self, rewards, n_value, done):
-        q_target = np.zeros_like(rewards)
+    def get_td_target(self, rewards, n_value, done):
+        td_target = np.zeros_like(rewards)
         cumulative = 0
         if not done:
             cumulative = n_value
         for k in reversed(range(0, len(rewards))):
             cumulative = self.gamma * cumulative + rewards[k]
-            q_target[k] = cumulative
-        return q_target
+            td_target[k] = cumulative
+        return td_target
 
 
     def advatnage(self, td_targets, values):
@@ -71,7 +71,7 @@ class WorkerAgent(Thread):
                 # get action according to prediction
                 action = np.random.choice(*self.action_dims, p = probs[0])
 
-                next_state, reward, done = self.env.step(action)
+                next_state, reward, done, _ = self.env.step(action)
 
                 state = np.reshape(state, [1, *self.state_dims])
                 action = np.reshape(action, [1, 1])
@@ -84,11 +84,12 @@ class WorkerAgent(Thread):
                     states, actions, rewards = self.buffer.sample()
 
                     n_value = self.critic.model.predict(next_state)
-                    q_target = self.get_q_target(rewards, n_value, done)
-                    advantages = q_target - self.critic.model.predict(states)
+                    td_target = self.get_td_target(rewards, n_value, done)
+                    advantages = td_target - self.critic.model.predict(states)
                     with self.lock:
+                        # lock global networks for changes
                         self.global_actor.train(states, actions, advantages)
-                        self.global_critic.train(states, q_target)
+                        self.global_critic.train(states, td_target)
 
                         self.actor.model.set_weights(self.global_actor.model.get_weights())
                         self.critic.model.set_weights(self.global_critic.model.get_weights())

@@ -4,16 +4,17 @@ from agent_discrete.worker import WorkerAgent
 from simulation.environment import TrackEnvironment
 
 from multiprocessing import cpu_count
+import gym
 
 class Agent(object):
-    def __init__(self, trackpath, actor_lr = 1e-6, critic_lr = 4*1e-6, gamma = 0.99,
-            beta = 0.01, batch_size = 8, fcl1_size = 64, fcl2_size = 64, fcl3_size = 32):
+    def __init__(self, trackpath, actor_lr = 0.0005, critic_lr = 0.001, gamma = 0.99,
+            beta = 0.01, batch_size = 5, fcl1_size = 32, fcl2_size = 16, fcl3_size = 16):
 
         env = TrackEnvironment(trackpath, render = False, width = 1.5, discrete = True)
         self.trackpath = trackpath
 
-        self.state_dims = [env.n_states]
-        self.action_dims = [env.n_actions]
+        self.state_dims = [4]#[env.n_states]
+        self.action_dims = [2]#[env.n_actions]
 
         self.actor_lr = actor_lr
         self.critic_lr = critic_lr
@@ -33,12 +34,13 @@ class Agent(object):
 
         self.num_workers = cpu_count()
 
-    def train(self, max_episodes=1000):
+    def train(self, max_episodes = 1000, render = True):
         workers = []
 
         for i in range(self.num_workers - 1):
             # new env each worker, NO RENDERING
-            env = TrackEnvironment(self.trackpath, render = False, width = 1.5, discrete = True)
+            # env = TrackEnvironment(self.trackpath, render = False, width = 1.5, discrete = True)
+            env = gym.make("CartPole-v1")
             workers.append(WorkerAgent(env, self.state_dims, self.action_dims, render = False,
                     actor_lr = self.actor_lr, critic_lr = self.critic_lr, entropy_beta = self.entropy_beta,
                     fcl1_size = self.fcl1_size,fcl2_size = self.fcl2_size, fcl3_size =  self.fcl3_size,
@@ -46,8 +48,9 @@ class Agent(object):
                     episodes = max_episodes, batch_size = self.batch_size, gamma = self.gamma))
 
         # leave rendering for one worker, test purpose
-        env = TrackEnvironment(self.trackpath, render = True, width = 1.5, discrete = True)
-        workers.append(WorkerAgent(env, self.state_dims, self.action_dims, render = True,
+        # env = TrackEnvironment(self.trackpath, render = render, width = 1.5, discrete = True)
+        env = gym.make("CartPole-v1")
+        workers.append(WorkerAgent(env, self.state_dims, self.action_dims, render = render,
                 actor_lr = self.actor_lr, critic_lr = self.critic_lr, entropy_beta = self.entropy_beta,
                 fcl1_size = self.fcl1_size,fcl2_size = self.fcl2_size, fcl3_size =  self.fcl3_size,
                 global_actor = self.global_actor, global_critic = self.global_critic,
@@ -58,3 +61,6 @@ class Agent(object):
 
         for worker in workers:
             worker.join()
+
+        self.global_actor.model.save("../trained_models/actor1.h5")
+        self.global_critic.model.save("../trained_models/critic1.h5")
