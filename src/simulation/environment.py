@@ -22,16 +22,25 @@ class TrackEnvironment(object):
     """
     def __init__(self, trackpath, width = 1, dt = 0.01, maxMa=6, maxDelta=1,
                     render = True, videogame = True, eps = 0.5, max_front = 10,
-                    min_speed = 5 * 1e-2, bored_after = 50):
+                    min_speed = 5 * 1e-2, bored_after = 50, discrete = False, discretization_steps = 2):
         # vehicle model settings
         self.car = Vehicle(maxMa, maxDelta)
         self.dt = dt
 
-        # state/action settings
+        # if set use the discretizer method to emulate a discrete action space
         self.n_states = 5
-        self.n_actions = 2
-        #[Break/Throttle], [Steering]
-        self.action_boundaries = [[-1,1], [-1,1]]
+        self.discrete = discrete
+        if(not self.discrete):
+            # continuous action setting
+            # state/action settings
+            self.n_actions = 2
+            #[Break/Throttle], [Steering]
+            self.action_boundaries = [[-1,1], [-1,1]]
+        else:
+            # discrete action setting
+            self.discretization_steps = discretization_steps
+            # 2 steps for throttle, n steps for steering
+            self.n_actions = 2 * self.discretization_steps
 
         # track settings
         # track width
@@ -43,6 +52,7 @@ class TrackEnvironment(object):
         self._still = 0
         self._min_speed = min_speed
         self._bored_after = bored_after
+
 
         # sensors parameters
         # rangefinder tolerance
@@ -211,7 +221,20 @@ class TrackEnvironment(object):
             self._still = 0
         return False
 
-
+    def _discretizer(self, discrete_action):
+        """
+        convert discrete to continous action
+        """
+        # TODO complete mapping with steps
+        # now 4 fixed actions
+        if (discrete_action == 0):
+            return [-1, -1]
+        elif (discrete_action == 1):
+            return [-1, 1]
+        elif (discrete_action == 2):
+            return [1, -1]
+        elif (discrete_action == 3):
+            return [1, 1]
 
     def _is_terminal(self, nearest_point_index):
         """
@@ -226,6 +249,8 @@ class TrackEnvironment(object):
         """
         advance the system
         """
+        if(self.discrete) :
+            action = self._discretizer(action)
         nearest_point_index = self._nearest_point()
         state_new = self._transition(action, nearest_point_index)
         terminal = self._is_terminal(nearest_point_index)

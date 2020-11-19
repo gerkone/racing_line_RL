@@ -16,11 +16,11 @@ class Actor(object):
                     fcl1_size, fcl2_size, upper_bound):
         self.state_dims = state_dims
         self.action_dims = action_dims
-        self.lr = lr
         # learning rate
+        self.lr = lr
         self.batch_size = batch_size
-        self.tau = tau
         # polyak averaging speed
+        self.tau = tau
         self.fcl1_size = fcl1_size
         self.fcl2_size = fcl2_size
         self.upper_bound = upper_bound

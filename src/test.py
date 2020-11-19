@@ -1,6 +1,7 @@
 import os, sys
 
 from simulation.environment import TrackEnvironment, manual
+from agent.ddpg import Agent
 
 N_EPISODES = 1000
 CHECKPOINT = 100
