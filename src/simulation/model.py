@@ -75,13 +75,13 @@ class Vehicle(object):
         self._y = self._doty*dt + self._y
 
         #Commentare se non è un umano a guidare
-        if abs(self._delta)>0.1:
-            self._dotdelta = -10.0*self._wheelRadius*self._delta*dt + self._dotdelta
-            self._delta = self._dotdelta*dt + self._delta
-            if self._delta<-self._maxDelta:
-                self._delta=-self._maxDelta
-            elif self._delta>self._maxDelta:
-                self._delta=self._maxDelta
+        # if abs(self._delta)>0.1:
+        #     self._dotdelta = -10.0*self._wheelRadius*self._delta*dt + self._dotdelta
+        #     self._delta = self._dotdelta*dt + self._delta
+        #     if self._delta<-self._maxDelta:
+        #         self._delta=-self._maxDelta
+        #     elif self._delta>self._maxDelta:
+        #         self._delta=self._maxDelta
 
     def setAcceleration(self, MaCoff):          #MaCoff is a value between -1 and 1
         if MaCoff>1:

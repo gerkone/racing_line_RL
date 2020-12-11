@@ -2,8 +2,8 @@ from agent_discrete.a3c import Agent
 import os
 
 def main():
-    agent = Agent("../tracks/track_4387235659010134370.npy")
-    agent.train(render = True)
+    agent = Agent("../tracks/track_4387235659010134370_ver1.npy")
+    agent.train(render = False)
 
 
 if __name__ == "__main__":

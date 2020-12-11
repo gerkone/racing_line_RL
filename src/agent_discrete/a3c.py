@@ -8,7 +8,7 @@ import gym
 
 class Agent(object):
     def __init__(self, trackpath, actor_lr = 1e-6, critic_lr = 4*1e-6, gamma = 0.99,
-            beta = 0.03, batch_size = 5, fcl1_size = 128, fcl2_size = 64, fcl3_size = 32):
+            beta = 0.03, batch_size = 5, fcl1_size = 64, fcl2_size = 32, fcl3_size = 32):
 
         env = TrackEnvironment(trackpath, render = False, width = 1.5, discrete = True)
         self.trackpath = trackpath
@@ -34,7 +34,7 @@ class Agent(object):
 
         self.num_workers = cpu_count()
 
-    def train(self, max_episodes = 1000, render = True):
+    def train(self, max_episodes = 10000, render = True):
         workers = []
 
         for i in range(self.num_workers - 1):

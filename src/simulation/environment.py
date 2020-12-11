@@ -22,7 +22,7 @@ class TrackEnvironment(object):
     """
     def __init__(self, trackpath, width = 1, dt = 0.01, maxMa=6, maxDelta=1,
                     render = True, videogame = True, eps = 0.5, max_front = 10,
-                    min_speed = 5 * 1e-3, bored_after = 50, discrete = False, discretization_steps = 3):
+                    min_speed = 5 * 1e-3, bored_after = 20, discrete = False, discretization_steps = 3):
         # vehicle model settings
         self.car = Vehicle(maxMa, maxDelta)
         self.dt = dt
@@ -40,7 +40,7 @@ class TrackEnvironment(object):
             # discrete action setting
             self.discretization_steps = discretization_steps
             # 2 steps for throttle, n steps for steering
-            self.n_actions = 3 * self.discretization_steps
+            self.n_actions = 1 * self.discretization_steps
 
         # track settings
         # track width
@@ -52,6 +52,7 @@ class TrackEnvironment(object):
         self._still = 0
         self._min_speed = min_speed
         self._bored_after = bored_after
+        self._old_index = 0
 
 
         # sensors parameters
@@ -171,7 +172,7 @@ class TrackEnvironment(object):
             d_front = min(d_front, self.max_front)
         else:
             d_front = self.max_front
-        return (d_sx, d_dx, d_front, angle)
+        return (round(d_sx, 2), round(d_dx, 2), d_front, round(angle, 1))
 
 
     def _transition(self, action, nearest_point_index):
@@ -179,8 +180,8 @@ class TrackEnvironment(object):
         apply the action on the model and return sensory (state) value
         """
         #update model paramters with new action
-        self.car.setAcceleration(action[0] )
-        self.car.setSteering(action[1] / 3)
+        self.car.setAcceleration(0.8)
+        self.car.setSteering(action[0])
         #step forward model by dt
         self.car.integrate(self.dt)
         #get new state sensor values
@@ -194,17 +195,12 @@ class TrackEnvironment(object):
         state_new[3], state_new[4] = self.car.getVelocities()
         return state_new
 
-    def _reward(self, speed_x, angle, terminal, index):
+    def _reward(self, speed_x, angle, terminal, d):
         """
         reward function as longitudinal speed along the track parallel
+        R = v[x] + delta(perc_done)
         """
-        reward = 20 * (index / len(self._track)) #+ speed_x * cos(angle)
-        # discourage standing still (lazy, afraid of barriers)
-        if(reward < self._min_speed):
-            reward = -1
-        # crashed or bored
-        if(terminal):
-            reward -= 1000
+        reward = speed_x * cos(angle) - speed_x * sin(angle) - speed_x * d
         return reward
 
     def _bored(self):
@@ -225,26 +221,12 @@ class TrackEnvironment(object):
         """
         convert discrete to continous action
         """
-        # TODO complete mapping with steps
-        # now 4 fixed actions
         if (discrete_action == 0):
-            return [-1, -1]
+            return [-1]
         elif (discrete_action == 1):
-            return [-1, 0]
+            return [0]
         elif (discrete_action == 2):
-            return [-1, 1]
-        elif (discrete_action == 3):
-            return [0, -1]
-        elif (discrete_action == 4):
-            return [0, 0]
-        elif (discrete_action == 5):
-            return [0, 1]
-        elif (discrete_action == 6):
-            return [1, -1]
-        elif (discrete_action == 7):
-            return [1, 0]
-        elif (discrete_action == 8):
-            return [1, 1]
+            return [1]
 
     def _is_terminal(self, nearest_point_index):
         """
@@ -264,7 +246,8 @@ class TrackEnvironment(object):
         nearest_point_index = self._nearest_point()
         state_new = self._transition(action, nearest_point_index)
         terminal = self._is_terminal(nearest_point_index)
-        reward = self._reward(state_new[3], state_new[2], terminal, nearest_point_index)
+        d = abs(state_new[0] - state_new[1])
+        reward = self._reward(state_new[3], state_new[2], terminal, d)
         return state_new, reward, terminal
 
     def reset(self):
@@ -280,6 +263,8 @@ class TrackEnvironment(object):
         state_new[0], state_new[1] = self.car.getPosition()
         state_new[2] = self.car.getAngles()[0]
         state_new[3], state_new[4] = self.car.getVelocities()
+        state_new[3] = round(state_new[3])
+        state_new[4] = round(state_new[4])
         return state_new
 
     def render(self):
@@ -356,7 +341,7 @@ def manual(path):
                 # Triggers
                 throttle = (analog_keys[5] + 1) / 2 - (analog_keys[2] + 1) / 2
 
-        print(o.step([throttle, steering])[0])
+        o.step([throttle, steering])[0]
         o.render()
         # o.get_action_videogame()
 

@@ -10,7 +10,7 @@ CUR_EPISODE = 0
 class WorkerAgent(Thread):
     def __init__(self, env, state_dims, action_dims, actor_lr, critic_lr,
                     entropy_beta, global_actor, global_critic, fcl1_size = 32,
-                    fcl2_size = 32, fcl3_size = 16, episodes = 1000,
+                    fcl2_size = 32, fcl3_size = 16, episodes = 10000,
                     batch_size = 16, gamma = 0.99,render = True):
         Thread.__init__(self)
         self.lock = Lock()
