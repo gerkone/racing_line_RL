@@ -3,7 +3,7 @@ import os
 
 def main():
     agent = Agent("../tracks/track_4387235659010134370_ver1.npy")
-    agent.train(render = False)
+    agent.train(render = True)
 
 
 if __name__ == "__main__":

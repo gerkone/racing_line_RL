@@ -7,8 +7,8 @@ from multiprocessing import cpu_count
 import gym
 
 class Agent(object):
-    def __init__(self, trackpath, actor_lr = 1e-6, critic_lr = 4*1e-6, gamma = 0.99,
-            beta = 0.03, batch_size = 5, fcl1_size = 64, fcl2_size = 32, fcl3_size = 32):
+    def __init__(self, trackpath, actor_lr = 1e-7, critic_lr = 4*1e-7, gamma = 0.99,
+            beta = 0.03, batch_size = 1, fcl1_size = 32, fcl2_size = 16, fcl3_size = 16):
 
         env = TrackEnvironment(trackpath, render = False, width = 1.5, discrete = True)
         self.trackpath = trackpath

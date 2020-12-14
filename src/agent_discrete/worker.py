@@ -98,6 +98,7 @@ class WorkerAgent(Thread):
                 episode_reward += reward[0][0]
                 state = next_state[0]
                 if(self.render):
+                    print(round(next_state[0,0], 2), round(next_state[0,1], 2)) 
                     self.env.render()
 
             print('EP{} EpisodeReward={}'.format(CUR_EPISODE, episode_reward))

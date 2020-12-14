@@ -20,9 +20,9 @@ class TrackEnvironment(object):
     [0] combined Throttle/Break
     [1] steering
     """
-    def __init__(self, trackpath, width = 1, dt = 0.01, maxMa=6, maxDelta=1,
+    def __init__(self, trackpath, width = 1, dt = 0.03, maxMa=6, maxDelta=1,
                     render = True, videogame = True, eps = 0.5, max_front = 10,
-                    min_speed = 5 * 1e-3, bored_after = 20, discrete = False, discretization_steps = 3):
+                    min_speed = 5 * 1e-3, bored_after = 20, discrete = False, discretization_steps = 5):
         # vehicle model settings
         self.car = Vehicle(maxMa, maxDelta)
         self.dt = dt
@@ -52,7 +52,7 @@ class TrackEnvironment(object):
         self._still = 0
         self._min_speed = min_speed
         self._bored_after = bored_after
-        self._old_index = 0
+        self._past = 0
 
 
         # sensors parameters
@@ -193,6 +193,8 @@ class TrackEnvironment(object):
         state_new[1] = sensors[1]
         state_new[2] = sensors[3]
         state_new[3], state_new[4] = self.car.getVelocities()
+        state_new[3] = round(state_new[3])
+        state_new[4] = round(state_new[4])
         return state_new
 
     def _reward(self, speed_x, angle, terminal, d):
@@ -200,7 +202,8 @@ class TrackEnvironment(object):
         reward function as longitudinal speed along the track parallel
         R = v[x] + delta(perc_done)
         """
-        reward = speed_x * cos(angle) - speed_x * sin(angle) - speed_x * d
+        reward = speed_x * cos(angle) - speed_x * sin(angle)
+        self._past = speed_x * cos(angle) * self.dt
         return reward
 
     def _bored(self):
@@ -224,8 +227,12 @@ class TrackEnvironment(object):
         if (discrete_action == 0):
             return [-1]
         elif (discrete_action == 1):
-            return [0]
+            return [-0.5]
         elif (discrete_action == 2):
+            return [0]
+        elif (discrete_action == 3):
+            return [0.5]
+        elif (discrete_action == 4):
             return [1]
 
     def _is_terminal(self, nearest_point_index):
@@ -260,7 +267,8 @@ class TrackEnvironment(object):
         track_angle = self._angle2points(q1, q2)
         self.car.reset(q1[0], q1[1], track_angle)
         state_new = np.zeros(shape = self.n_states)
-        state_new[0], state_new[1] = self.car.getPosition()
+        # middle of the track
+        state_new[0], state_new[1] = (self.width, self.width)
         state_new[2] = self.car.getAngles()[0]
         state_new[3], state_new[4] = self.car.getVelocities()
         state_new[3] = round(state_new[3])

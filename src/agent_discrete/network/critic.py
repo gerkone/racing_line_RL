@@ -36,7 +36,8 @@ class Critic(object):
         fcl3 = Dense(self.fcl3_size, name = "Third_FCL")(fcl2)
         fcl3 = Activation("relu", name = "ReLU_3")(fcl3)
         # -- output layer
-        output = Dense(1, kernel_regularizer=tf.keras.regularizers.l2(0.01))(fcl3)
+        output = Dense(1)(fcl3)
+        output = Activation("linear", name = "linear_out")(output)
 
         model = Model(input_layer, output)
         return model

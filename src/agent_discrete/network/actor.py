@@ -35,7 +35,8 @@ class Actor(object):
         fcl2 = Dense(self.fcl2_size, name = "Second_FCL")(fcl1)
         fcl2 = Activation("relu", name = "ReLU_2")(fcl2)
         # -- output layer, softmax activation --
-        output_layer = Dense(*self.action_dims, kernel_regularizer=tf.keras.regularizers.l2(0.01), name = "Action_out")(fcl2)
+        # output_layer = Dense(*self.action_dims, kernel_regularizer=tf.keras.regularizers.l2(0.01), name = "Action_out")(fcl2)
+        output_layer = Dense(*self.action_dims, name = "Action_out")(fcl2)
         output_layer = Activation("softmax", name = "softmax_out")(output_layer)
         model = Model(input_layer, output_layer)
         return model
