@@ -6,6 +6,8 @@ from agent_discrete.network.critic import Critic
 from agent_discrete.utils.buffer import ReplayBuffer
 
 CUR_EPISODE = 0
+RUNNING_AVG = 0
+REWARDS = np.ones(8)
 
 class WorkerAgent(Thread):
     def __init__(self, env, state_dims, action_dims, actor_lr, critic_lr,
@@ -58,8 +60,14 @@ class WorkerAgent(Thread):
     def advatnage(self, td_targets, values):
         return td_targets - values
 
+    def running_mean(x, N):
+        sum = numpy.cumsum(numpy.insert(x, 0, 0))
+        return (sum[N:] - sum[:-N]) / float(N)
+
     def train(self):
         global CUR_EPISODE
+        global RUNNING_AVG
+        global REWARDS
 
         while self.episodes >= CUR_EPISODE:
             episode_reward, done = 0, False
@@ -98,11 +106,12 @@ class WorkerAgent(Thread):
                 episode_reward += reward[0][0]
                 state = next_state[0]
                 if(self.render):
-                    print(round(next_state[0,0], 2), round(next_state[0,1], 2)) 
                     self.env.render()
 
-            print('EP{} EpisodeReward={}'.format(CUR_EPISODE, episode_reward))
+            print('EP{} EpisodeReward={:.2f} AVG={:.2f}'.format(CUR_EPISODE, episode_reward, RUNNING_AVG))
             CUR_EPISODE += 1
+            REWARDS[CUR_EPISODE % 8] = episode_reward
+            RUNNING_AVG = sum(REWARDS) / 8
 
     def run(self):
         self.train()

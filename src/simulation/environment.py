@@ -20,7 +20,7 @@ class TrackEnvironment(object):
     [0] combined Throttle/Break
     [1] steering
     """
-    def __init__(self, trackpath, width = 1, dt = 0.03, maxMa=6, maxDelta=1,
+    def __init__(self, trackpath, width = 1.5, dt = 0.008, maxMa=6, maxDelta=1,
                     render = True, videogame = True, eps = 0.5, max_front = 10,
                     min_speed = 5 * 1e-3, bored_after = 20, discrete = False, discretization_steps = 5):
         # vehicle model settings
@@ -33,9 +33,9 @@ class TrackEnvironment(object):
         if(not self.discrete):
             # continuous action setting
             # state/action settings
-            self.n_actions = 2
+            self.n_actions = 1
             #[Break/Throttle], [Steering]
-            self.action_boundaries = [[-1,1], [-1,1]]
+            self.action_boundaries = [[-1,1]] #, [-1,1]]
         else:
             # discrete action setting
             self.discretization_steps = discretization_steps
@@ -180,8 +180,8 @@ class TrackEnvironment(object):
         apply the action on the model and return sensory (state) value
         """
         #update model paramters with new action
-        self.car.setAcceleration(0.8)
-        self.car.setSteering(action[0])
+        self.car.setAcceleration(1)
+        self.car.setSteering(action[0] * 0.8)
         #step forward model by dt
         self.car.integrate(self.dt)
         #get new state sensor values
@@ -197,13 +197,33 @@ class TrackEnvironment(object):
         state_new[4] = round(state_new[4])
         return state_new
 
-    def _reward(self, speed_x, angle, terminal, d):
+    def _reward(self, speed_x, angle, terminal, nearest_point_index, steering):
         """
         reward function as longitudinal speed along the track parallel
         R = v[x] + delta(perc_done)
         """
-        reward = speed_x * cos(angle) - speed_x * sin(angle)
+
+        # reward = pow(speed_x * cos(angle), 2) - speed_x * sin(angle)
+
         self._past = speed_x * cos(angle) * self.dt
+
+        d = self._dist(self._track[nearest_point_index])
+        if(d > self.width * 0.4):
+            reward = 0.8
+        elif(d > self.width * 0.6):
+            reward = 0.4
+        elif(d > self.width * 0.8):
+            reward = 0.1
+        else:
+            reward = 1
+
+        if(steering >= -0.5 and steering <= 0.5):
+            reward += 2
+        reward *= pow(speed_x, 2)
+
+        if(d > self.width):
+            reward = 0
+
         return reward
 
     def _bored(self):
@@ -240,7 +260,7 @@ class TrackEnvironment(object):
         state is terminal if car has crashed
         (distance from track centre is greater than its width)
         """
-        if self._dist(self._track[nearest_point_index]) > self.width:
+        if self._dist(self._track[nearest_point_index]) > self.width * 1.5:
             return True
         return self._bored()
 
@@ -253,8 +273,7 @@ class TrackEnvironment(object):
         nearest_point_index = self._nearest_point()
         state_new = self._transition(action, nearest_point_index)
         terminal = self._is_terminal(nearest_point_index)
-        d = abs(state_new[0] - state_new[1])
-        reward = self._reward(state_new[3], state_new[2], terminal, d)
+        reward = self._reward(state_new[3], state_new[2], terminal, nearest_point_index, action[0])
         return state_new, reward, terminal
 
     def reset(self):

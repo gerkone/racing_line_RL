@@ -60,7 +60,7 @@ class Vehicle(object):
         dotpsinew = self.Vx*tan(self._delta)/(self._LR+self._LF)
         angularmomentum = 35.0*(dotpsinew-self._dotpsi)
 
-        # self._dotpsi = (angularmomentum-self.CalcPacejkaFront()*self._LF*cos(self._delta)-self.CalcPacejkaRear()*self._LR)*dt + self._dotpsi
+        self._dotpsi = (angularmomentum-self.CalcPacejkaFront()*self._LF*cos(self._delta)-self.CalcPacejkaRear()*self._LR)*dt + self._dotpsi
         #print("PacejkaDiff{}".format(self.CalcPacejkaFront()*self._LF*cos(self._delta)+self.CalcPacejkaRear()*self._LR))
 
         self._psi = dotpsinew*dt + self._psi
