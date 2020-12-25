@@ -4,6 +4,8 @@ import time
 import os
 import re
 
+import pyclipper
+
 from simulation.model import Vehicle
 
 class TrackEnvironment(object):
@@ -11,7 +13,7 @@ class TrackEnvironment(object):
     State array of 6 elements
     state[0] left distance from track side
     state[1] right distance from track side
-    state[2] front distance from track side (capped at 100)
+    state[2] front distance from track side (capped at rangefinder_range)
     state[3] longitudinal velocity
     state[4] transversal velocity
     state[5] angle with track axis
@@ -20,15 +22,15 @@ class TrackEnvironment(object):
     [0] combined Throttle/Break
     [1] steering
     """
-    def __init__(self, trackpath, width = 1.5, dt = 0.015, maxMa=6, maxDelta=1,
-                    render = True, videogame = True, eps = 0.5, max_front = 10,
+    def __init__(self, trackpath, width = 1.5, dt = 0.015, maxMa=6, maxDelta=1, render = True, videogame = True,
+                    eps = 0.5, max_front = 10, rangefinder_angle = 0.05, rangefinder_range = 20,
                     min_speed = 5 * 1e-3, bored_after = 20, discrete = False, discretization_steps = 5):
         # vehicle model settings
         self.car = Vehicle(maxMa, maxDelta)
         self.dt = dt
 
         # if set use the discretizer method to emulate a discrete action space
-        self.n_states = 5
+        self.n_states = 6
         self.discrete = discrete
         if(not self.discrete):
             # continuous action setting
@@ -48,12 +50,21 @@ class TrackEnvironment(object):
         # load track array
         self._track = np.load(trackpath)
 
+        self._rangefinder_range = rangefinder_range
+        self._rangefinder_angle = rangefinder_angle
+
+        # inner and outer borders
+        offsetter = pyclipper.PyclipperOffset()
+        scaled = pyclipper.scale_to_clipper(self._track)
+        offsetter.AddPath(scaled, pyclipper.JT_SQUARE, pyclipper.ET_CLOSEDPOLYGON)
+        self._inner_border = pyclipper.scale_from_clipper(offsetter.Execute(pyclipper.scale_to_clipper(-self.width)))[0]
+        self._outer_border = pyclipper.scale_from_clipper(offsetter.Execute(pyclipper.scale_to_clipper(self.width)))[0]
+
         # agent/training parameters
         self._still = 0
         self._min_speed = min_speed
         self._bored_after = bored_after
         self._start = 0
-
 
         # sensors parameters
         # rangefinder tolerance
@@ -83,27 +94,20 @@ class TrackEnvironment(object):
         """
         return min(range(len(self._track)), key = lambda i : self._dist(self._track[i]))
 
-    def _nearest_point_line(self, angle, q):
+    def _points_in_angle(self, ro, angle, poly, max):
         """
-        return the index in the track array of the nearest point to the line
+        return the points in the track border inside the angle ro
         """
-        # ax + by + c
-        a = tan(angle)
-        b = -1
-        c = -a * q[0] + q[1]
+        carpos = self.car.getPosition()
+        l = max / cos(ro)
+        # triangle with vertex on car, angle of ro and height of max
+        front_triangle = [carpos, [carpos[0] + l * cos(angle - ro), carpos[1] + l * sin(angle - ro)],
+            [carpos[0] + l * cos(angle + ro), carpos[1] + l * sin(angle + ro)]]
 
-        def dist_line(p, a, b, c):
-            """
-            distance between point and line
-            """
-            return abs(a * p[0] + b * p[1] + c)/sqrt(pow(a, 2) + pow(b, 2))
-        # TODO distance projection to the track border ( now middle line )
-        closest_point = min(range(len(self._track)), key = lambda i : dist_line(self._track[i], a, b, c))
-        # introduce tolerance
-        if dist_line(self._track[closest_point], a, b, c) > self.eps:
-            return None
-        else:
-            return closest_point
+        inside = [p for p in poly if self._inside_poly(p, front_triangle)]
+
+        return inside
+
 
     def _dist(self, q_track, q_point = None):
         """
@@ -138,18 +142,20 @@ class TrackEnvironment(object):
 
         return angle % (2 * pi)
 
-    def _inside_track(self, q):
+    def _inside_poly(self, q, poly = None):
         """
         ray-casting algorithm for point in polygon
         """
+        if(poly is None):
+            poly = self._track
         i = 0
-        j = len(self._track) - 1
+        j = len(poly) - 1
         hits = 0
-        while i < len(self._track):
-            xi = self._track[i][0]
-            yi = self._track[i][1]
-            xj = self._track[j][0]
-            yj = self._track[j][1]
+        while i < len(poly):
+            xi = poly[i][0]
+            yi = poly[i][1]
+            xj = poly[j][0]
+            yj = poly[j][1]
             j = i
             i += 1
             intersect = ((yi > q[1]) != (yj > q[1])) and (q[0] < (xj - xi) * (q[1] - yi) / (yj - yi) + xi)
@@ -158,7 +164,7 @@ class TrackEnvironment(object):
         # odd hits = inside, even hits inside
         return hits % 2
 
-    def _get_track_sensors(self, nearest_point_index):
+    def _get_sensors(self, nearest_point_index):
         """
         return distances and angle sensory values
         """
@@ -171,7 +177,7 @@ class TrackEnvironment(object):
         carpos = self.car.getPosition()
         d = self._dist(self._track[nearest_point_index])
         # sensor 0 and 1 -- left-right rangefinders
-        if self._inside_track(carpos):
+        if self._inside_poly(carpos):
             # inside
             d_dx = d + self.width
             d_sx = self.width - d
@@ -186,15 +192,19 @@ class TrackEnvironment(object):
         car_angle = self.car.getAngles()[0] % (2 * pi)
         angle = car_angle - track_angle
         # sensor 2 -- front rangefinder
-        closest_point = self._nearest_point_line(car_angle, carpos)
-        if closest_point is not None:
-            track_front = self._track[closest_point]
-            d_front = self._dist(track_front)
-            # cap front distance to max_front
-            d_front = min(d_front, self.max_front)
-        else:
-            d_front = self.max_front
-        return (round(d_sx, 2), round(d_dx, 2), d_front, round(angle, 3))
+        in_front = self._points_in_angle(self._rangefinder_angle, track_angle, self._inner_border, self._rangefinder_range)
+        in_front += self._points_in_angle(self._rangefinder_angle, track_angle, self._outer_border, self._rangefinder_range)
+        # closest border point
+        try:
+            d_front = self._dist(in_front[0])
+            for f in in_front[1:]:
+                dist = self._dist(f)
+                if(dist < d_front):
+                    d_front = dist
+        except IndexError:
+            # no points found
+            d_front = self._rangefinder_range
+        return (round(d_sx, 3), round(d_dx, 3), round(d_front, 3), round(angle, 3))
 
 
     def _transition(self, action, nearest_point_index):
@@ -202,21 +212,21 @@ class TrackEnvironment(object):
         apply the action on the model and return sensory (state) value
         """
         #update model paramters with new action
-        self.car.setAcceleration(0.9)
+        self.car.setAcceleration(0.3)
         self.car.setSteering(action[0] * 0.8)
         #step forward model by dt
         self.car.integrate(self.dt)
         #get new state sensor values
         state_new = np.zeros(shape = self.n_states)
-        # state_new[0], state_new[1], state_new[2], state_new[5] = self._get_track_sensors(nearest_point_index)
-        # state_new[3], state_new[4] = self.car.getVelocities()
-        sensors = self._get_track_sensors(nearest_point_index)
-        state_new[0] = sensors[0]
-        state_new[1] = sensors[1]
-        state_new[2] = sensors[3]
+
+        sensors = self._get_sensors(nearest_point_index)
+        state_new[0] = sensors[0] # left distance from track side
+        state_new[1] = sensors[1] # right distance from track side
+        state_new[2] = sensors[2] # front distance from track side (capped at rangefinder_range)
         state_new[3], state_new[4] = self.car.getVelocities()
         state_new[3] = round(state_new[3], 2)
         state_new[4] = round(state_new[4], 2)
+        state_new[5] = sensors[3] # angle with track axis
         return state_new
 
     def _reward(self, speed_x, angle, terminal, nearest_point_index, steering):
@@ -234,7 +244,7 @@ class TrackEnvironment(object):
             reward = 1
 
         if(steering >= -0.5 and steering <= 0.5):
-            reward += 2
+            reward += 1
         reward *= pow(speed_x, 2)
 
         if(d > self.width):
@@ -308,12 +318,14 @@ class TrackEnvironment(object):
         track_angle = self._angle2points(q1, q2)
         self.car.reset(q2[0], q2[1], track_angle)
         state_new = np.zeros(shape = self.n_states)
-        # middle of the track
-        state_new[0], state_new[1] = (self.width, self.width)
-        state_new[2] = round(self.car.getAngles()[0], 3)
+        sensors = self._get_sensors(self._start)
+        state_new[0] = sensors[0] # left distance from track side
+        state_new[1] = sensors[1] # right distance from track side
+        state_new[2] = sensors[2] # front distance from track side (capped at rangefinder_range)
         state_new[3], state_new[4] = self.car.getVelocities()
         state_new[3] = round(state_new[3], 2)
         state_new[4] = round(state_new[4], 2)
+        state_new[5] = sensors[3] # angle with track axis
         return state_new
 
     def render(self):

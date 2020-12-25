@@ -1,6 +1,7 @@
 import os, sys
 import numpy as np
 
+
 from simulation.environment import TrackEnvironment, manual
 from agent.ddpg import Agent
 
@@ -17,8 +18,8 @@ def main():
     #create agent with environment parameters
     agent = Agent(state_dims = state_dims, action_dims = action_dims,
                 action_boundaries = action_boundaries, actor_lr = 1e-6,
-                critic_lr = 4*1e-6, batch_size = 128, gamma = 0.99, rand_steps = 2,
-                buf_size = int(1e4), tau = 0.001, fcl1_size = 256, fcl2_size = 256)
+                critic_lr = 2*1e-6, batch_size = 64, gamma = 0.99, rand_steps = 0,
+                buf_size = int(1e4), tau = 0.001, fcl1_size = 128, fcl2_size = 64)
     np.random.seed(0)
     scores = []
     #training loop: call remember on predicted states and train the models
