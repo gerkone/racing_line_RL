@@ -1,4 +1,5 @@
 import os, sys
+import numpy as np
 
 from simulation.environment import TrackEnvironment, manual
 from agent.ddpg import Agent
