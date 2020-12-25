@@ -1,4 +1,4 @@
-from math import cos, sin, atan, tan, sqrt, floor
+from math import cos, sin, tan, sqrt, floor, pi, asin
 import numpy as np
 import time
 import os
@@ -20,7 +20,7 @@ class TrackEnvironment(object):
     [0] combined Throttle/Break
     [1] steering
     """
-    def __init__(self, trackpath, width = 1.5, dt = 0.008, maxMa=6, maxDelta=1,
+    def __init__(self, trackpath, width = 1.5, dt = 0.015, maxMa=6, maxDelta=1,
                     render = True, videogame = True, eps = 0.5, max_front = 10,
                     min_speed = 5 * 1e-3, bored_after = 20, discrete = False, discretization_steps = 5):
         # vehicle model settings
@@ -52,7 +52,7 @@ class TrackEnvironment(object):
         self._still = 0
         self._min_speed = min_speed
         self._bored_after = bored_after
-        self._past = 0
+        self._start = 0
 
 
         # sensors parameters
@@ -114,7 +114,29 @@ class TrackEnvironment(object):
         return sqrt(pow(q_point[0] - q_track[0], 2) + pow(q_point[1] - q_track[1], 2))
 
     def _angle2points(self, q1, q2):
-        return atan((q2[1] - q1[1]) / (q2[0] - q1[0]))
+        angle = abs(asin((q2[1] - q1[1]) / self._dist(q1, q2)))
+        if(q2[0] >= q1[0]):
+            # right
+            if(q2[1] >= q1[1]):
+                # print("first")
+                # first quadrant
+                angle = angle
+            elif(q2[1] < q1[1]):
+                # print("fourth")
+                # fourth quandrant
+                angle = 2 * pi - angle
+        elif(q2[0] < q1[0]):
+            # left
+            if(q2[1] >= q1[1]):
+                # print("second")
+                # second quadrant
+                angle = pi - angle
+            elif(q2[1] < q1[1]):
+                # print("third")
+                # third quandrant
+                angle = pi + angle
+
+        return angle % (2 * pi)
 
     def _inside_track(self, q):
         """
@@ -161,7 +183,7 @@ class TrackEnvironment(object):
         d_sx = min(max(0, d_sx), self.width * 2)
         d_dx = min(max(0, d_dx), self.width * 2)
         # sensor 5 -- track-relative angle
-        car_angle = self.car.getAngles()[0]
+        car_angle = self.car.getAngles()[0] % (2 * pi)
         angle = car_angle - track_angle
         # sensor 2 -- front rangefinder
         closest_point = self._nearest_point_line(car_angle, carpos)
@@ -172,7 +194,7 @@ class TrackEnvironment(object):
             d_front = min(d_front, self.max_front)
         else:
             d_front = self.max_front
-        return (round(d_sx, 2), round(d_dx, 2), d_front, round(angle, 1))
+        return (round(d_sx, 2), round(d_dx, 2), d_front, round(angle, 3))
 
 
     def _transition(self, action, nearest_point_index):
@@ -180,7 +202,7 @@ class TrackEnvironment(object):
         apply the action on the model and return sensory (state) value
         """
         #update model paramters with new action
-        self.car.setAcceleration(1)
+        self.car.setAcceleration(0.9)
         self.car.setSteering(action[0] * 0.8)
         #step forward model by dt
         self.car.integrate(self.dt)
@@ -193,19 +215,13 @@ class TrackEnvironment(object):
         state_new[1] = sensors[1]
         state_new[2] = sensors[3]
         state_new[3], state_new[4] = self.car.getVelocities()
-        state_new[3] = round(state_new[3])
-        state_new[4] = round(state_new[4])
+        state_new[3] = round(state_new[3], 2)
+        state_new[4] = round(state_new[4], 2)
         return state_new
 
     def _reward(self, speed_x, angle, terminal, nearest_point_index, steering):
         """
-        reward function as longitudinal speed along the track parallel
-        R = v[x] + delta(perc_done)
         """
-
-        # reward = pow(speed_x * cos(angle), 2) - speed_x * sin(angle)
-
-        self._past = speed_x * cos(angle) * self.dt
 
         d = self._dist(self._track[nearest_point_index])
         if(d > self.width * 0.4):
@@ -261,6 +277,8 @@ class TrackEnvironment(object):
         (distance from track centre is greater than its width)
         """
         if self._dist(self._track[nearest_point_index]) > self.width * 1.5:
+            # update next starting position
+            self._start = nearest_point_index
             return True
         return self._bored()
 
@@ -271,6 +289,10 @@ class TrackEnvironment(object):
         if(self.discrete) :
             action = self._discretizer(action)
         nearest_point_index = self._nearest_point()
+        q2 = self._track[nearest_point_index]
+        # take a couple of points before to avoid superposition
+        q1 = self._track[(nearest_point_index - 2) % len(self._track)]
+        track_angle = self._angle2points(q1, q2)
         state_new = self._transition(action, nearest_point_index)
         terminal = self._is_terminal(nearest_point_index)
         reward = self._reward(state_new[3], state_new[2], terminal, nearest_point_index, action[0])
@@ -280,18 +302,18 @@ class TrackEnvironment(object):
         """
         set the car on the starting line
         """
-        q1 = self._track[0]
-        # take a couple of points after to avoid superposition
-        q2 = self._track[3]
+        q2 = self._track[self._start]
+        # take a couple of points before to avoid superposition
+        q1 = self._track[(self._start - 2) % len(self._track)]
         track_angle = self._angle2points(q1, q2)
-        self.car.reset(q1[0], q1[1], track_angle)
+        self.car.reset(q2[0], q2[1], track_angle)
         state_new = np.zeros(shape = self.n_states)
         # middle of the track
         state_new[0], state_new[1] = (self.width, self.width)
-        state_new[2] = self.car.getAngles()[0]
+        state_new[2] = round(self.car.getAngles()[0], 3)
         state_new[3], state_new[4] = self.car.getVelocities()
-        state_new[3] = round(state_new[3])
-        state_new[4] = round(state_new[4])
+        state_new[3] = round(state_new[3], 2)
+        state_new[4] = round(state_new[4], 2)
         return state_new
 
     def render(self):

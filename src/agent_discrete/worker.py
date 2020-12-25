@@ -1,4 +1,5 @@
 import numpy as np
+
 from threading import Thread, Lock
 
 from agent_discrete.network.actor import Actor
@@ -7,7 +8,7 @@ from agent_discrete.utils.buffer import ReplayBuffer
 
 CUR_EPISODE = 0
 RUNNING_AVG = 0
-REWARDS = np.ones(8)
+REWARDS = np.ones(50)
 
 class WorkerAgent(Thread):
     def __init__(self, env, state_dims, action_dims, actor_lr, critic_lr,
@@ -108,10 +109,10 @@ class WorkerAgent(Thread):
                 if(self.render):
                     self.env.render()
 
-            print('EP{} EpisodeReward={:.2f} AVG={:.2f}'.format(CUR_EPISODE, episode_reward, RUNNING_AVG))
             CUR_EPISODE += 1
-            REWARDS[CUR_EPISODE % 8] = episode_reward
-            RUNNING_AVG = sum(REWARDS) / 8
+            REWARDS[CUR_EPISODE % len(REWARDS)] = episode_reward
+            RUNNING_AVG = sum(REWARDS) / min(CUR_EPISODE, len(REWARDS))
+            print('EP{} EpisodeReward={:.2f} AVG={:.2f}'.format(CUR_EPISODE, episode_reward, RUNNING_AVG))
 
     def run(self):
         self.train()
