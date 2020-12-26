@@ -1,6 +1,6 @@
-numpy==1.18.2
-tensorflow==2.2.0
-matplotlib==3.3.2
-gym==0.17.2
-Keras==2.4.3
-pyzmq==19.0.2
+numpy>=1.18.2
+tensorflow>=2.2.0
+matplotlib>=3.3.2
+pyclipper>=1.2.0
+Keras>=2.4.3
+pyzmq>=19.0.2

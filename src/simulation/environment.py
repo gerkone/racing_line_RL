@@ -24,7 +24,7 @@ class TrackEnvironment(object):
     """
     def __init__(self, trackpath, width = 1.5, dt = 0.015, maxMa=6, maxDelta=1, render = True, videogame = True,
                     eps = 0.5, max_front = 10, rangefinder_angle = 0.05, rangefinder_range = 20,
-                    min_speed = 5 * 1e-3, bored_after = 20, discrete = False, discretization_steps = 5):
+                    min_speed = 5 * 1e-3, bored_after = 20, discrete = False, discretization_steps = 4):
         # vehicle model settings
         self.car = Vehicle(maxMa, maxDelta)
         self.dt = dt
@@ -35,14 +35,14 @@ class TrackEnvironment(object):
         if(not self.discrete):
             # continuous action setting
             # state/action settings
-            self.n_actions = 1
+            self.n_actions = 2
             #[Break/Throttle], [Steering]
-            self.action_boundaries = [[-1,1]] #, [-1,1]]
+            self.action_boundaries = [[-1,1] , [-1,1]]
         else:
             # discrete action setting
             self.discretization_steps = discretization_steps
             # 2 steps for throttle, n steps for steering
-            self.n_actions = 1 * self.discretization_steps
+            self.n_actions = 10 #2 * self.discretization_steps
 
         # track settings
         # track width
@@ -212,8 +212,8 @@ class TrackEnvironment(object):
         apply the action on the model and return sensory (state) value
         """
         #update model paramters with new action
-        self.car.setAcceleration(0.3)
-        self.car.setSteering(action[0] * 0.8)
+        self.car.setAcceleration(action[0])
+        self.car.setSteering(action[1] * 0.8)
         #step forward model by dt
         self.car.integrate(self.dt)
         #get new state sensor values
@@ -271,15 +271,25 @@ class TrackEnvironment(object):
         convert discrete to continous action
         """
         if (discrete_action == 0):
-            return [-1]
+            return [-1, 0]
         elif (discrete_action == 1):
-            return [-0.5]
+            return [-1, 1]
         elif (discrete_action == 2):
-            return [0]
+            return [-0.5, 0]
         elif (discrete_action == 3):
-            return [0.5]
+            return [-0.5, 1]
         elif (discrete_action == 4):
-            return [1]
+            return [0, 0]
+        elif (discrete_action == 5):
+            return [0, 1]
+        elif (discrete_action == 6):
+            return [0.5, 0]
+        elif (discrete_action == 7):
+            return [0.5, 1]
+        elif (discrete_action == 8):
+            return [1, 0]
+        elif (discrete_action == 9):
+            return [1, 1]
 
     def _is_terminal(self, nearest_point_index):
         """

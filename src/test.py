@@ -1,11 +1,11 @@
 import os, sys
 import numpy as np
 
-
+from matplotlib.pyplot as plt
 from simulation.environment import TrackEnvironment, manual
 from agent.ddpg import Agent
 
-N_EPISODES = 1000
+N_EPISODES = 10000
 CHECKPOINT = 100
 
 def main():
