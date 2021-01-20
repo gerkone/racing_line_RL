@@ -198,5 +198,5 @@ v = Vehicle();
 v.CalcPacejkaFront()
 v.CalcPacejkaRear()
 
-#Abbiamo scritto più commenti che codice se tu inutile informatico non capisci
+#Abbiamo scritto più commenti che codice, se tu inutile informatico non capisci
 #sparati in booca! Tanti bacini dai Fisici!
