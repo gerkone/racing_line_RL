@@ -1,9 +1,11 @@
 from math import cos, sin, tan, sqrt, floor, pi, asin
 import numpy as np
+import collections as col
 import time
 import os
 import re
 import matplotlib.pyplot as plt
+import cv2
 
 import pyclipper
 
@@ -23,7 +25,7 @@ class TrackEnvironment(object):
     [0] combined Throttle/Break
     [1] steering
     """
-    def __init__(self, trackpath, width = 1.5, dt = 0.015, maxMa=6, maxDelta=1, render = True, videogame = True,
+    def __init__(self, trackpath, width = 1.5, dt = 0.015, maxMa=6, maxDelta=1, render = True, videogame = True, vision = True,
                     eps = 0.5, max_front = 10, rangefinder_angle = 0.05, rangefinder_range = 20,
                     min_speed = 5 * 1e-3, bored_after = 20, discrete = False, discretization_steps = 4):
         # vehicle model settings
@@ -33,10 +35,11 @@ class TrackEnvironment(object):
         # message passing connetion
         self._render = render
 
+        self._vision = vision
+
         # if set use the discretizer method to emulate a discrete action space
         self.n_states = 6
         # add state to accomodate image
-        # if self._render: n_states+=1
         self.discrete = discrete
         if(not self.discrete):
             # continuous action setting
@@ -92,10 +95,10 @@ class TrackEnvironment(object):
             context = zmq.Context()
             self._socket = context.socket(zmq.REP)
             self._socket.bind("tcp://*:55555")
-            # TODO fork visualizer
             # wait for visualizer client ack
             print("Waiting on port 55555 for visualizer handshake...")
             self._socket.recv()
+
             print("Communication OK!")
 
     def _nearest_point(self):
@@ -214,7 +217,9 @@ class TrackEnvironment(object):
         except IndexError:
             # no points found
             d_front = self._rangefinder_range
-        return (round(d_sx, 3), round(d_dx, 3), round(d_front, 3), round(angle, 3))
+
+        vx, vy = self.car.getVelocities()
+        return np.array([round(d_sx, 3), round(d_dx, 3), round(vx, 2), round(vy, 2), round(d_front, 3), round(angle, 3)])
 
 
     def _transition(self, action, nearest_point_index):
@@ -227,18 +232,15 @@ class TrackEnvironment(object):
         #step forward model by dt
         self.car.integrate(self.dt)
         #get new state sensor values
-        state_new = np.zeros(shape = self.n_states)
-
-        sensors = self._get_sensors(nearest_point_index)
-        state_new[0] = sensors[0] # left distance from track side
-        state_new[1] = sensors[1] # right distance from track side
-        state_new[2] = sensors[2] # front distance from track side (capped at rangefinder_range)
-        state_new[3], state_new[4] = self.car.getVelocities()
-        state_new[3] = round(state_new[3], 2)
-        state_new[4] = round(state_new[4], 2)
-        state_new[5] = sensors[3] # angle with track axis
-        # if self._render: state_new[6] = self._render_and_vision()
-        return state_new
+        sensors = self._get_sensors(self._start)
+        if self._render: image = self.render_and_vision()
+        if self._vision:
+            state_new = col.namedtuple("observation", ["sensors", "image"])
+            return state_new(sensors = sensors,
+                            image = image)
+        else:
+            state_new = col.namedtuple("observation", ["sensors"])
+            return state_new(sensors = sensors)
 
     def _reward(self, speed_x, angle, terminal, nearest_point_index, steering):
         """
@@ -326,7 +328,8 @@ class TrackEnvironment(object):
         track_angle = self._angle2points(q1, q2)
         state_new = self._transition(action, nearest_point_index)
         terminal = self._is_terminal(nearest_point_index)
-        reward = self._reward(state_new[3], state_new[2], terminal, nearest_point_index, action[0])
+        sensors = state_new.sensors
+        reward = self._reward(sensors[3], sensors[2], terminal, nearest_point_index, action[0])
         return state_new, reward, terminal
 
     def reset(self):
@@ -338,19 +341,17 @@ class TrackEnvironment(object):
         q1 = self._track[(self._start - 2) % len(self._track)]
         track_angle = self._angle2points(q1, q2)
         self.car.reset(q2[0], q2[1], track_angle)
-        state_new = np.zeros(shape = self.n_states)
         sensors = self._get_sensors(self._start)
-        state_new[0] = sensors[0] # left distance from track side
-        state_new[1] = sensors[1] # right distance from track side
-        state_new[2] = sensors[2] # front distance from track side (capped at rangefinder_range)
-        state_new[3], state_new[4] = self.car.getVelocities()
-        state_new[3] = round(state_new[3], 2)
-        state_new[4] = round(state_new[4], 2)
-        state_new[5] = sensors[3] # angle with track axis
-        # if self._render: state_new[6] = self._render_and_vision()
-        return state_new
+        if self._render: image = self.render_and_vision()
+        if self._vision:
+            state_new = col.namedtuple("observation", ["sensors", "image"])
+            return state_new(sensors = sensors,
+                            image = image)
+        else:
+            state_new = col.namedtuple("observation", ["sensors"])
+            return state_new(sensors = sensors)
 
-    def _render_and_vision(self):
+    def render_and_vision(self):
         """
         send data to the 3D visualizer to render the current state and get image back
         """
@@ -363,11 +364,15 @@ class TrackEnvironment(object):
         self._socket.send_string(data)
         # wait for confirmation
         vision = self._socket.recv()
-        width = 1000
-        height = 1000
-        image = np.frombuffer(vision, dtype=np.uint8).reshape((width, height, 3))
-        image = np.flip(image, axis = 0)
-        return image
+        if self._vision:
+            width = 1000
+            height = 1000
+            image = np.array(np.frombuffer(vision, dtype=np.uint8).reshape((width, height, 3)))
+            image = np.flip(image, axis = 0)
+            resized = cv2.resize(image, dsize=(64, 64), interpolation=cv2.INTER_CUBIC)
+            # plt.imshow(resized)
+            # plt.show()
+            return image
 
     def get_action_videogame(self):
         if self._videogame:
@@ -383,17 +388,17 @@ class TrackEnvironment(object):
             #2 -> turn right
             message = self._socket.recv()
             #formatting
-            data = re.findall('(\d+)/(\d+)', message.decode("utf-8"))
+            data = re.findall("(\d+)/(\d+)", message.decode("utf-8"))
             #set value on the model
-            if data[0][0]=='1':
+            if data[0][0]=="1":
                 self.car.setAcceleration(1.0)
-            elif data[0][0]=='2':
+            elif data[0][0]=="2":
                 self.car.setAcceleration(-1.0)
             else:
                 self.car.setAcceleration(0.0)
-            if data[0][1]=='1':
+            if data[0][1]=="1":
                 self.car.littleSteeringLeft()
-            elif data[0][1]=='2':
+            elif data[0][1]=="2":
                 self.car.littleSteeringRight()
             #step forward model by dt
             self.car.integrate(self.dt)
@@ -432,7 +437,7 @@ def manual(path, joystick = True):
                     throttle = (analog_keys[5] + 1) / 2 - (analog_keys[2] + 1) / 2
 
             o.step([throttle, steering])
-            o.render()
+            o.render_and_vision()
             # o.get_action_videogame()
     else:
         import keyboard
@@ -442,7 +447,7 @@ def manual(path, joystick = True):
             throttle = 0
             # TODO
             o.step([throttle, steering])
-            o.render()
+            o.render_and_vision()
 
 
 if __name__ == "__main__":

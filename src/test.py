@@ -11,7 +11,7 @@ CHECKPOINT = 100
 def main():
     #TODO args to load model
     #get simulation environment
-    env = TrackEnvironment("../tracks/track_4387235659010134370.npy", render = True, width = 1.5)
+    env = TrackEnvironment("../tracks/track_4387235659010134370.npy", render = True, vision = True, width = 1.5)
     state_dims = [env.n_states]
     action_dims = [env.n_actions]
     action_boundaries = [-1,1]
@@ -26,6 +26,8 @@ def main():
     for i in range(N_EPISODES):
         #get initial state
         state = env.reset()
+        # temporary
+        state = state.sensors
         terminal = False
         score = 0
         #proceed until reaching an exit state
@@ -34,6 +36,8 @@ def main():
             action = agent.get_action(state, i)
             #perform the transition according to the predicted action
             state_new, reward, terminal = env.step(action)
+            # temporary
+            state_new = state_new.sensors
             #store the transaction in the memory
             agent.remember(state, state_new, action, reward, terminal)
             #adjust the weights according to the new transaction

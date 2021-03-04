@@ -782,12 +782,7 @@ int main(void){
 
         // send confirmation
 
-        int dest_width = 64;
-        int dest_height = 64;
-
         uint8_t pixels[width * height * 3];
-
-        uint8_t resized[dest_width * dest_height * 3];
 
         glReadPixels(0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE, &pixels);
 
