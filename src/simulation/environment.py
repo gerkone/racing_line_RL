@@ -99,6 +99,11 @@ class TrackEnvironment(object):
             print("Waiting on port 55555 for visualizer handshake...")
             self._socket.recv()
 
+            # enable/disable vision
+            data = "{}".format(self._vision)
+            self._socket.send_string(data)
+
+            self._socket.recv()
             print("Communication OK!")
 
     def _nearest_point(self):
@@ -363,11 +368,11 @@ class TrackEnvironment(object):
         data = "{}/{}/{}/{}".format(carpos[0], carpos[1], carangles[0], carangles[1])
         self._socket.send_string(data)
         # wait for confirmation
-        vision = self._socket.recv()
+        data = self._socket.recv()
         if self._vision:
             width = 1000
             height = 1000
-            image = np.array(np.frombuffer(vision, dtype=np.uint8).reshape((width, height, 3)))
+            image = np.array(np.frombuffer(data, dtype=np.uint8).reshape((width, height, 3)))
             image = np.flip(image, axis = 0)
             resized = cv2.resize(image, dsize=(64, 64), interpolation=cv2.INTER_CUBIC)
             # plt.imshow(resized)

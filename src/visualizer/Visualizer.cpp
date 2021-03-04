@@ -749,6 +749,17 @@ int main(void){
     // visualizer ready
     socket.send(zmq::buffer(ack), zmq::send_flags::none);
 
+    socket.recv(reply, zmq::recv_flags::none);
+    string vision_setting = reply.to_string();
+
+    bool vision = true;
+
+    if(vision_setting.compare("False") == 0) {
+      vision = false;
+    }
+
+    socket.send(zmq::buffer(ack), zmq::send_flags::none);
+
     while (!glfwWindowShouldClose(window)) {
         if (cameraAttacedToCar){
           cameraX = carLocX-4*sin(carphi); cameraY = 2.0f; cameraZ = carLocY-4*cos(carphi);
@@ -778,19 +789,22 @@ int main(void){
         carLocY = values.at(1)-ycorrection;
         carphi = M_PI/2 - values.at(2);
         sterzo = -values.at(3);
-        //cout << carLocX << ", " << carLocY << ", " << carphi << ", " << sterzo << endl;
+        // cout << carLocX << ", " << carLocY << ", " << carphi << ", " << sterzo << endl;
 
         // send confirmation
+        if (vision) {
+          uint8_t pixels[width * height * 3];
 
-        uint8_t pixels[width * height * 3];
+          glReadPixels(0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE, &pixels);
 
-        glReadPixels(0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE, &pixels);
+          // TODO RESIZE CAPTURE
 
-        // TODO RESIZE CAPTURE
+          zmq::message_t msg(pixels, (width * height * sizeof(uint8_t) * 3));
 
-        zmq::message_t msg(pixels, (width * height * sizeof(uint8_t) * 3));
-
-        socket.send(msg, zmq::send_flags::dontwait);
+          socket.send(msg, zmq::send_flags::dontwait);
+        } else {
+          socket.send(zmq::buffer(ack), zmq::send_flags::none);
+        }
 
         //// send inputdata
         // stringstream inputdata;

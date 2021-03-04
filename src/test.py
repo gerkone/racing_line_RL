@@ -11,7 +11,7 @@ CHECKPOINT = 100
 def main():
     #TODO args to load model
     #get simulation environment
-    env = TrackEnvironment("../tracks/track_4387235659010134370.npy", render = True, vision = True, width = 1.5)
+    env = TrackEnvironment("../tracks/track_4387235659010134370.npy", render = True, vision = False, width = 1.5)
     state_dims = [env.n_states]
     action_dims = [env.n_actions]
     action_boundaries = [-1,1]
