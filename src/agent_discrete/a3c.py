@@ -8,7 +8,7 @@ import gym
 
 class Agent(object):
     def __init__(self, trackpath, actor_lr = 1e-6, critic_lr = 4*1e-6, gamma = 0.99,
-            beta = 0.01, batch_size = 8, fcl1_size = 64, fcl2_size = 32, fcl3_size = 32):
+            beta = 0.01, batch_size = 8, fcl1_size = 128, fcl2_size = 128, fcl3_size = 64):
 
         env = TrackEnvironment(trackpath, render = False, width = 1.5, discrete = True)
         self.trackpath = trackpath
@@ -34,7 +34,7 @@ class Agent(object):
 
         self.num_workers = cpu_count()
 
-    def train(self, max_episodes = 10000, render = True):
+    def train(self, max_episodes = 1000000, render = True):
         workers = []
 
         for i in range(self.num_workers - 1):
@@ -48,7 +48,7 @@ class Agent(object):
                     episodes = max_episodes, batch_size = self.batch_size, gamma = self.gamma))
 
         # leave rendering for one worker, test purpose
-        env = TrackEnvironment(self.trackpath, render = render, width = 1.5, discrete = True)
+        env = TrackEnvironment(self.trackpath, render = render, vision = False, width = 1.5, discrete = True)
         # env = gym.make("CartPole-v1")
         workers.append(WorkerAgent(env, self.state_dims, self.action_dims, render = render,
                 actor_lr = self.actor_lr, critic_lr = self.critic_lr, entropy_beta = self.entropy_beta,

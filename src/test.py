@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from simulation.environment import TrackEnvironment, manual
 from agent.ddpg import Agent
 
-N_EPISODES = 10000
+N_EPISODES = 1000000
 CHECKPOINT = 100
 
 def main():
@@ -19,7 +19,7 @@ def main():
     agent = Agent(state_dims = state_dims, action_dims = action_dims,
                 action_boundaries = action_boundaries, actor_lr = 1e-6,
                 critic_lr = 2*1e-6, batch_size = 64, gamma = 0.99, rand_steps = 0,
-                buf_size = int(1e4), tau = 0.001, fcl1_size = 128, fcl2_size = 64)
+                buf_size = int(1e4), tau = 0.001, fcl1_size = 600, fcl2_size = 400)
     np.random.seed(0)
     scores = []
     #training loop: call remember on predicted states and train the models

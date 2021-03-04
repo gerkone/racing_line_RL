@@ -75,6 +75,8 @@ class TrackEnvironment(object):
         self._bored_after = bored_after
         self._start = 0
 
+        self._steps = 0
+
         # sensors parameters
         # rangefinder tolerance
         self.eps = eps
@@ -263,6 +265,7 @@ class TrackEnvironment(object):
 
         if(steering >= -0.5 and steering <= 0.5):
             reward += 1
+
         reward *= pow(speed_x, 2)
 
         if(d > self.width):
@@ -274,14 +277,9 @@ class TrackEnvironment(object):
         """
         terminate if car was still too long
         """
-        if sqrt(pow(self.car.getVelocities()[0], 2) + pow(self.car.getVelocities()[1], 2)) < self._min_speed:
-            if self._still > self._bored_after:
-                self._still = 0
+        if self._steps > self._bored_after:
+            if sqrt(pow(self.car.getVelocities()[0], 2) + pow(self.car.getVelocities()[1], 2)) < self._min_speed:
                 return True
-            else:
-                self._still += 1
-        else:
-            self._still = 0
         return False
 
     def _discretizer(self, discrete_action):
@@ -314,7 +312,7 @@ class TrackEnvironment(object):
         state is terminal if car has crashed
         (distance from track centre is greater than its width)
         """
-        if self._dist(self._track[nearest_point_index]) > self.width * 1.5:
+        if self._dist(self._track[nearest_point_index]) > self.width * 1.3:
             # update next starting position
             self._start = nearest_point_index
             return True
@@ -324,6 +322,7 @@ class TrackEnvironment(object):
         """
         advance the system
         """
+        self._steps += 1
         if(self.discrete) :
             action = self._discretizer(action)
         nearest_point_index = self._nearest_point()
@@ -341,6 +340,8 @@ class TrackEnvironment(object):
         """
         set the car on the starting line
         """
+        self._steps = 0
+        
         q2 = self._track[self._start]
         # take a couple of points before to avoid superposition
         q1 = self._track[(self._start - 2) % len(self._track)]
