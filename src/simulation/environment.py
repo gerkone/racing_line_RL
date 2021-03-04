@@ -3,6 +3,7 @@ import numpy as np
 import time
 import os
 import re
+import matplotlib.pyplot as plt
 
 import pyclipper
 
@@ -29,8 +30,13 @@ class TrackEnvironment(object):
         self.car = Vehicle(maxMa, maxDelta)
         self.dt = dt
 
+        # message passing connetion
+        self._render = render
+
         # if set use the discretizer method to emulate a discrete action space
         self.n_states = 6
+        # add state to accomodate image
+        # if self._render: n_states+=1
         self.discrete = discrete
         if(not self.discrete):
             # continuous action setting
@@ -72,13 +78,17 @@ class TrackEnvironment(object):
         # rangefinder distance cap
         self.max_front = max_front
 
-        # message passing connetion
-        self._render = render
         if self._render:
             self._videogame = videogame
         if self._render:
             # input from the rendering program mode
             import zmq
+            from subprocess import Popen
+
+            # run the visualizer
+            os.chdir("visualizer/")
+            self.visualizer_proc = Popen(["./run"], shell=True,
+                        stdin=None, stdout=None, stderr=None, close_fds=True)
             context = zmq.Context()
             self._socket = context.socket(zmq.REP)
             self._socket.bind("tcp://*:55555")
@@ -227,6 +237,7 @@ class TrackEnvironment(object):
         state_new[3] = round(state_new[3], 2)
         state_new[4] = round(state_new[4], 2)
         state_new[5] = sensors[3] # angle with track axis
+        # if self._render: state_new[6] = self._render_and_vision()
         return state_new
 
     def _reward(self, speed_x, angle, terminal, nearest_point_index, steering):
@@ -336,22 +347,27 @@ class TrackEnvironment(object):
         state_new[3] = round(state_new[3], 2)
         state_new[4] = round(state_new[4], 2)
         state_new[5] = sensors[3] # angle with track axis
+        # if self._render: state_new[6] = self._render_and_vision()
         return state_new
 
-    def render(self):
+    def _render_and_vision(self):
         """
-        send data to the 3D visualizer to render the current state
+        send data to the 3D visualizer to render the current state and get image back
         """
-        if self._render:
-            # wait for renderer ready
-            # send data to client as / separed list
-            # formatted as {x}/{y}/{car_angle}/{front_tyres_angle}
-            carpos = self.car.getPosition()
-            carangles = self.car.getAngles()
-            data = "{}/{}/{}/{}".format(carpos[0], carpos[1], carangles[0], carangles[1])
-            self._socket.send_string(data)
-            # wait for confirmation
-            self._socket.recv()
+        # wait for renderer ready
+        # send data to client as / separed list
+        # formatted as {x}/{y}/{car_angle}/{front_tyres_angle}
+        carpos = self.car.getPosition()
+        carangles = self.car.getAngles()
+        data = "{}/{}/{}/{}".format(carpos[0], carpos[1], carangles[0], carangles[1])
+        self._socket.send_string(data)
+        # wait for confirmation
+        vision = self._socket.recv()
+        width = 1000
+        height = 1000
+        image = np.frombuffer(vision, dtype=np.uint8).reshape((width, height, 3))
+        image = np.flip(image, axis = 0)
+        return image
 
     def get_action_videogame(self):
         if self._videogame:
@@ -382,39 +398,52 @@ class TrackEnvironment(object):
             #step forward model by dt
             self.car.integrate(self.dt)
 
-def manual(path):
-    import pygame
-    pygame.init()
-    #Initialize controller
-    joysticks = []
-    for i in range(pygame.joystick.get_count()):
-        joysticks.append(pygame.joystick.Joystick(i))
-    for joystick in joysticks:
-        joystick.init()
-    # 0: Left analog horizonal
-    # 2: Left Trigger, 5: Right Trigger
-    analog_keys = {0:0, 1:0, 2:0, 3:0, 4:-1, 5: -1 }
+def manual(path, joystick = True):
 
     o = TrackEnvironment(path)
     o.reset()
-    while True:
-        for event in pygame.event.get():
+
+    if joystick:
+        import pygame
+        pygame.init()
+        #Initialize controller
+        joysticks = []
+        for i in range(pygame.joystick.get_count()):
+            joysticks.append(pygame.joystick.Joystick(i))
+        for joystick in joysticks:
+            joystick.init()
+        # 0: Left analog horizonal
+
+        # 2: Left Trigger, 5: Right Trigger
+        analog_keys = {0:0, 1:0, 2:0, 3:0, 4:-1, 5: -1 }
+        while True:
+            for event in pygame.event.get():
+                steering = 0
+                throttle = 0
+                if event.type == pygame.QUIT:
+                    running = False
+                if event.type == pygame.KEYDOWN:
+                    pass
+                if event.type == pygame.JOYAXISMOTION:
+                    analog_keys[event.axis] = event.value
+                    # Horizontal Analog
+                    steering = analog_keys[0]
+                    # Triggers
+                    throttle = (analog_keys[5] + 1) / 2 - (analog_keys[2] + 1) / 2
+
+            o.step([throttle, steering])
+            o.render()
+            # o.get_action_videogame()
+    else:
+        import keyboard
+        # keyboard mode
+        while True:
             steering = 0
             throttle = 0
-            if event.type == pygame.QUIT:
-                running = False
-            if event.type == pygame.KEYDOWN:
-                pass
-            if event.type == pygame.JOYAXISMOTION:
-                analog_keys[event.axis] = event.value
-                # Horizontal Analog
-                steering = analog_keys[0]
-                # Triggers
-                throttle = (analog_keys[5] + 1) / 2 - (analog_keys[2] + 1) / 2
+            # TODO
+            o.step([throttle, steering])
+            o.render()
 
-        o.step([throttle, steering])[0]
-        o.render()
-        # o.get_action_videogame()
 
 if __name__ == "__main__":
     manual()

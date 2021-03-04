@@ -779,41 +779,56 @@ int main(void){
         carphi = M_PI/2 - values.at(2);
         sterzo = -values.at(3);
         //cout << carLocX << ", " << carLocY << ", " << carphi << ", " << sterzo << endl;
+
         // send confirmation
-        //socket.send(zmq::buffer(ack), zmq::send_flags::none);
 
-        //send inputdata
-        stringstream inputdata;
-        if (!accellerate || !decellerate){
-          if (accellerate){
-            inputdata << 1 << "/";
-          }else if (decellerate){
-            inputdata << 2 << "/";
-          }else{
-            inputdata << 0 << "/";
-          }
-        }else{
-          inputdata << 0 << "/";
-        }
-        if (!steeringleft || !steeringright){
-          if (steeringleft){
-            inputdata << 1;
-          } else if (steeringright){
-            inputdata << 2;
-          }else{
-            inputdata << 0;
-          }
-        }else{
-          inputdata << 0;
-        }
-        socket.send(zmq::buffer(inputdata.str()), zmq::send_flags::none);
+        int dest_width = 64;
+        int dest_height = 64;
 
+        uint8_t pixels[width * height * 3];
 
-        //Clear Variables
-        accellerate = false;
-        decellerate = false;
-        steeringleft = false;
-        steeringright = false;
+        uint8_t resized[dest_width * dest_height * 3];
+
+        glReadPixels(0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE, &pixels);
+
+        // TODO RESIZE CAPTURE
+
+        zmq::message_t msg(pixels, (width * height * sizeof(uint8_t) * 3));
+
+        socket.send(msg, zmq::send_flags::dontwait);
+
+        //// send inputdata
+        // stringstream inputdata;
+        // if (!accellerate || !decellerate){
+        //   if (accellerate){
+        //     inputdata << 1 << "/";
+        //   }else if (decellerate){
+        //     inputdata << 2 << "/";
+        //   }else{
+        //     inputdata << 0 << "/";
+        //   }
+        // }else{
+        //   inputdata << 0 << "/";
+        // }
+        // if (!steeringleft || !steeringright){
+        //   if (steeringleft){
+        //     inputdata << 1;
+        //   } else if (steeringright){
+        //     inputdata << 2;
+        //   }else{
+        //     inputdata << 0;
+        //   }
+        // }else{
+        //   inputdata << 0;
+        // }
+        // socket.send(zmq::buffer(inputdata.str()), zmq::send_flags::none);
+        //
+        //
+        // //Clear Variables
+        // accellerate = false;
+        // decellerate = false;
+        // steeringleft = false;
+        // steeringright = false;
     }
     glfwDestroyWindow(window);
     glfwTerminate();

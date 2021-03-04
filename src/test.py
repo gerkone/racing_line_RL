@@ -1,7 +1,7 @@
 import os, sys
 import numpy as np
 
-from matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 from simulation.environment import TrackEnvironment, manual
 from agent.ddpg import Agent
 
@@ -41,7 +41,6 @@ def main():
             #iterate to the next state
             state = state_new
             score += reward
-            env.render()
         scores.append(score)
         print("Iteration {:d} --> score {:.2f}. Running average {:.2f}".format( i, score, np.mean(scores)))
         # if i % CHECKPOINT:
@@ -55,11 +54,14 @@ def main():
 
 
 if __name__ == "__main__":
-
     if("manual" in sys.argv):
         while True:
             print("starting in manual mode...\n\n")
             manual("../tracks/track_4387235659010134370.npy")
+    elif("keyboard" in sys.argv):
+        while True:
+            print("starting in manual mode...\n\n")
+            manual("../tracks/track_4387235659010134370.npy", joystick = False)
     else:
         #tell tensorflow to train with GPU 0
         os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
