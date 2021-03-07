@@ -4,10 +4,10 @@ from datetime import datetime
 import numpy as np
 import tensorflow as tf
 
-from agent.utils.replay_buffer import ReplayBuffer
-from agent.utils.action_noise import OUActionNoise
-from agent.network.actor import Actor
-from agent.network.critic import Critic
+from src.agent.utils.replay_buffer import ReplayBuffer
+from src.agent.utils.action_noise import OUActionNoise
+from src.agent.network.actor import Actor
+from src.agent.network.critic import Critic
 
 class Agent(object):
     """
@@ -16,6 +16,8 @@ class Agent(object):
     def __init__(self, state_dims, action_dims, action_boundaries, actor_lr = 1e-5,
                 critic_lr = 1e-4, batch_size = 64, gamma = 0.99, actor_update_delay = 2,
                 rand_steps = 1, buf_size = 10000, tau = 1e-3, fcl1_size = 400, fcl2_size = 600):
+                
+        tf.random.set_seed(0)
         # action size
         self.n_states = state_dims[0]
         # state size

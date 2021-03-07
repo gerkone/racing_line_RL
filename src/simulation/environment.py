@@ -6,10 +6,9 @@ import os
 import re
 import matplotlib.pyplot as plt
 import cv2
-
 import pyclipper
 
-from simulation.model import Vehicle
+from src.simulation.model import Vehicle
 
 class TrackEnvironment(object):
     """
@@ -91,7 +90,7 @@ class TrackEnvironment(object):
             from subprocess import Popen
 
             # run the visualizer
-            os.chdir("visualizer/")
+            os.chdir("src/visualizer/")
             self.visualizer_proc = Popen(["./run"], shell=True,
                         stdin=None, stdout=None, stderr=None, close_fds=True)
             context = zmq.Context()
@@ -341,7 +340,7 @@ class TrackEnvironment(object):
         set the car on the starting line
         """
         self._steps = 0
-        
+
         q2 = self._track[self._start]
         # take a couple of points before to avoid superposition
         q1 = self._track[(self._start - 2) % len(self._track)]

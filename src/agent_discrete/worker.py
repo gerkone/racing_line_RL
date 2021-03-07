@@ -2,9 +2,9 @@ import numpy as np
 
 from threading import Thread, Lock
 
-from agent_discrete.network.actor import Actor
-from agent_discrete.network.critic import Critic
-from agent_discrete.utils.buffer import ReplayBuffer
+from src.agent_discrete.network.actor import Actor
+from src.agent_discrete.network.critic import Critic
+from src.agent_discrete.utils.buffer import ReplayBuffer
 
 CUR_EPISODE = 0
 RUNNING_AVG = 0

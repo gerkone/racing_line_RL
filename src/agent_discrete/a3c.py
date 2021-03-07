@@ -1,16 +1,18 @@
-from agent_discrete.network.actor import Actor
-from agent_discrete.network.critic import Critic
-from agent_discrete.worker import WorkerAgent
-from simulation.environment import TrackEnvironment
-
+import tensorflow as tf
 from multiprocessing import cpu_count
 import gym
 
+from src.agent_discrete.network.actor import Actor
+from src.agent_discrete.network.critic import Critic
+from src.agent_discrete.worker import WorkerAgent
+from src.simulation.environment import TrackEnvironment
+
 class Agent(object):
-    def __init__(self, trackpath, actor_lr = 1e-6, critic_lr = 4*1e-6, gamma = 0.99,
+    def __init__(self, trackpath, actor_lr = 1e-6, critic_lr = 4*1e-6, gamma = 0.99, render = True,
             beta = 0.01, batch_size = 8, fcl1_size = 128, fcl2_size = 128, fcl3_size = 64):
 
-        env = TrackEnvironment(trackpath, render = False, width = 1.5, discrete = True)
+        tf.random.set_seed(0)
+        env = TrackEnvironment(trackpath, render = False, vision = False, width = 1.5, discrete = True)
         self.trackpath = trackpath
 
         self.state_dims = [env.n_states]
@@ -39,8 +41,8 @@ class Agent(object):
 
         for i in range(self.num_workers - 1):
             # new env each worker, NO RENDERING
-            env = TrackEnvironment(self.trackpath, render = False, width = 1.5, discrete = True)
-            #env = gym.make("CartPole-v1")
+            env = TrackEnvironment(self.trackpath, render = False, vision = False, width = 1.5, discrete = True)
+
             workers.append(WorkerAgent(env, self.state_dims, self.action_dims, render = False,
                     actor_lr = self.actor_lr, critic_lr = self.critic_lr, entropy_beta = self.entropy_beta,
                     fcl1_size = self.fcl1_size,fcl2_size = self.fcl2_size, fcl3_size =  self.fcl3_size,
@@ -49,7 +51,7 @@ class Agent(object):
 
         # leave rendering for one worker, test purpose
         env = TrackEnvironment(self.trackpath, render = render, vision = False, width = 1.5, discrete = True)
-        # env = gym.make("CartPole-v1")
+
         workers.append(WorkerAgent(env, self.state_dims, self.action_dims, render = render,
                 actor_lr = self.actor_lr, critic_lr = self.critic_lr, entropy_beta = self.entropy_beta,
                 fcl1_size = self.fcl1_size,fcl2_size = self.fcl2_size, fcl3_size =  self.fcl3_size,

@@ -1,9 +1,9 @@
 import os, sys
 import numpy as np
-
 import matplotlib.pyplot as plt
-from simulation.environment import TrackEnvironment, manual
-from agent.ddpg import Agent
+
+from src.simulation.environment import TrackEnvironment, manual
+from src.agent.ddpg import Agent
 
 N_EPISODES = 1000000
 CHECKPOINT = 100
@@ -11,7 +11,7 @@ CHECKPOINT = 100
 def main():
     #TODO args to load model
     #get simulation environment
-    env = TrackEnvironment("../tracks/track_4387235659010134370.npy", render = True, vision = False, width = 1.5)
+    env = TrackEnvironment("./tracks/track_4387235659010134370_ver1.npy", render = True, vision = False, width = 1.5)
     state_dims = [env.n_states]
     action_dims = [env.n_actions]
     action_boundaries = [-1,1]
@@ -21,6 +21,7 @@ def main():
                 critic_lr = 2*1e-6, batch_size = 64, gamma = 0.99, rand_steps = 0,
                 buf_size = int(1e4), tau = 0.001, fcl1_size = 600, fcl2_size = 400)
     np.random.seed(0)
+
     scores = []
     #training loop: call remember on predicted states and train the models
     for i in range(N_EPISODES):

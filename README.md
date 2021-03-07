@@ -14,18 +14,14 @@ Then install the 3D visualizer dependencies: openGL and ZeroMQ. You can find cpp
 
 Run the continuous agent with
 ```
-python src/test.py
+python test.py
 ```
 
 Or the manual mode with
 ```
-python src/test.py manual
+python test.py manual
 ```
 
-Alternatively you can run the discrete agent with
-```
-python src/test_discrete.py
-```
 
 ## Model
 The model interface is similar to OpenAI gym:
