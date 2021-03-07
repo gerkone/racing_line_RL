@@ -1,5 +1,31 @@
 # racing_line_RL
-Racing line estimation using deep reinforcement learning.
+Simple racerack environment for Reinforcement Learning tests.
+
+The environment works in two modes:
+* manual: The vehicle is driven directly by the user through a controller
+* Automatic: The action are choosen by the agent
+
+## Usage
+First install the python requirements with
+```
+pip install -r requirements.txt
+```
+Then install the 3D visualizer dependencies: openGL and ZeroMQ. You can find cppzmq from [here](https://github.com/zeromq/cppzmq).
+
+Run the continuous agent with
+```
+python src/test.py
+```
+
+Or the manual mode with
+```
+python src/test.py manual
+```
+
+Alternatively you can run the discrete agent with
+```
+python src/test_discrete.py
+```
 
 ## Model
 The model interface is similar to OpenAI gym:
