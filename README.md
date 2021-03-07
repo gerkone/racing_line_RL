@@ -10,7 +10,7 @@ First install the python requirements with
 ```
 pip install -r requirements.txt
 ```
-Then install the 3D visualizer dependencies: openGL and ZeroMQ. You can find cppzmq from [here](https://github.com/zeromq/cppzmq).
+Then install the 3D visualizer dependencies: openGL and ZeroMQ. You can find cppzmq [here](https://github.com/zeromq/cppzmq).
 
 Run the continuous agent with
 ```
