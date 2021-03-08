@@ -26,7 +26,7 @@ class TrackEnvironment(object):
     """
     def __init__(self, trackpath, width = 1.5, dt = 0.015, maxMa=6, maxDelta=1, render = True, videogame = True, vision = True,
                     eps = 0.5, max_front = 10, rangefinder_angle = 0.05, rangefinder_range = 20,
-                    min_speed = 5 * 1e-3, bored_after = 20, discrete = False, discretization_steps = 4):
+                    min_speed = 0.5, bored_after = 20, discrete = False, discretization_steps = 4):
         # vehicle model settings
         self.car = Vehicle(maxMa, maxDelta)
         self.dt = dt
@@ -263,9 +263,10 @@ class TrackEnvironment(object):
             reward = 1
 
         if(steering >= -0.5 and steering <= 0.5):
-            reward += 1
+            reward += 0.5
 
-        reward *= pow(speed_x, 2)
+        if (speed_x < self._min_speed):
+            reward = 0
 
         if(d > self.width):
             reward = 0
@@ -332,7 +333,7 @@ class TrackEnvironment(object):
         state_new = self._transition(action, nearest_point_index)
         terminal = self._is_terminal(nearest_point_index)
         sensors = state_new.sensors
-        reward = self._reward(sensors[3], sensors[2], terminal, nearest_point_index, action[0])
+        reward = self._reward(sensors[2], sensors[5], terminal, nearest_point_index, action[0])
         return state_new, reward, terminal
 
     def reset(self):
@@ -377,7 +378,7 @@ class TrackEnvironment(object):
             resized = cv2.resize(image, dsize=(64, 64), interpolation=cv2.INTER_CUBIC)
             # plt.imshow(resized)
             # plt.show()
-            return image
+            return resized
 
     def get_action_videogame(self):
         if self._videogame:

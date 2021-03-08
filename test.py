@@ -1,5 +1,6 @@
 import os, sys
 import numpy as np
+import cv2
 import matplotlib.pyplot as plt
 
 from src.simulation.environment import TrackEnvironment, manual
@@ -8,10 +9,17 @@ from src.agent.ddpg import Agent
 N_EPISODES = 1000000
 CHECKPOINT = 100
 
+def preprocess(image):
+    image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    # plt.imshow(image)
+    # plt.show()
+    image = image.flatten()
+    return image
+
 def main():
     #TODO args to load model
     #get simulation environment
-    env = TrackEnvironment("./tracks/track_4387235659010134370_ver1.npy", render = True, vision = False, width = 1.5)
+    env = TrackEnvironment("./tracks/track_4387235659010134370_ver1.npy", render = True, vision = False, width = 1.0)
     state_dims = [env.n_states]
     action_dims = [env.n_actions]
     action_boundaries = [-1,1]
@@ -39,6 +47,7 @@ def main():
             state_new, reward, terminal = env.step(action)
             # temporary
             state_new = state_new.sensors
+
             #store the transaction in the memory
             agent.remember(state, state_new, action, reward, terminal)
             #adjust the weights according to the new transaction

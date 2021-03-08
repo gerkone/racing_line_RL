@@ -157,9 +157,28 @@ class Vehicle(object):
 
     #reset position and angle
     def reset(self, x0, y0, psi0):
-        self._x = x0;
-        self._y = y0;
+        self._x = x0
+        self._y = y0
         self._psi = psi0
+
+        self._dotx = 0  #x velocity street R.S.
+        self._doty = 0  #y velocity street R.S.
+
+        self._beta = 0  #angle between the velocity and the car assex
+        self._delta = 0 #angle between the front wheel and the car assex
+        self._dotdelta = 0 #delta angular speed
+        self._dotpsi = 0 #psi angular speed
+        self._Ma = 0    #motor acceleration
+        self._Vx = 0 #x velocity car R.S.
+        self._Vy = 0 #y velocity car R.S.
+        self._massa = 10 #vehicle mass
+        self._LF = 1.5 #distance from front assex
+        self._LR = 1.5 #distance from rear assex
+        self._wheelRadius = 0.4 #wheel radius
+        self._previewsx = 0 #x position in the previous integration
+        self._previewsy = 0 #y position in the previous integration
+        self._slipF = 0 #slip angle front wheel
+        self._slipR = 0 #slip angle rear wheel
 
     #evaluation of front Pacejka force
     def CalcPacejkaFront(self):
