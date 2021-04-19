@@ -25,7 +25,7 @@ class TrackEnvironment(object):
     [1] steering
     """
     def __init__(self, trackpath, width = 1.5, dt = 0.015, maxMa=6, maxDelta=1, render = True, videogame = True, vision = True,
-                    eps = 0.5, max_front = 10, rangefinder_angle = 0.05, rangefinder_range = 20,
+                    eps = 0.5, max_front = 10, rangefinder_angle = 0.05, rangefinder_range = 20, img_width = 64, img_height = 64,
                     min_speed = 0.5, bored_after = 20, discrete = False, discretization_steps = 4):
         # vehicle model settings
         self.car = Vehicle(maxMa, maxDelta)
@@ -35,6 +35,9 @@ class TrackEnvironment(object):
         self._render = render
 
         self._vision = vision
+
+        self.img_width = img_width
+        self.img_height = img_height
 
         # if set use the discretizer method to emulate a discrete action space
         self.n_states = 6
@@ -233,7 +236,7 @@ class TrackEnvironment(object):
         apply the action on the model and return sensory (state) value
         """
         #update model paramters with new action
-        self.car.setAcceleration(action[0])
+        self.car.setAcceleration(0.3) #action[0])
         self.car.setSteering(action[1] * 0.8)
         #step forward model by dt
         self.car.integrate(self.dt)
@@ -241,12 +244,14 @@ class TrackEnvironment(object):
         sensors = self._get_sensors(self._start)
         if self._render: image = self.render_and_vision()
         if self._vision:
-            state_new = col.namedtuple("observation", ["sensors", "image"])
-            return state_new(sensors = sensors,
-                            image = image)
+            state_new = {}
+            state_new["sensors"] = sensors
+            state_new["image"] = image
+            return state_new
         else:
-            state_new = col.namedtuple("observation", ["sensors"])
-            return state_new(sensors = sensors)
+            state_new = {}
+            state_new["sensors"] = sensors
+            return state_new
 
     def _reward(self, speed_x, angle, terminal, nearest_point_index, steering):
         """
@@ -262,11 +267,13 @@ class TrackEnvironment(object):
         else:
             reward = 1
 
-        if(steering >= -0.5 and steering <= 0.5):
-            reward += 0.5
+        # if(steering >= -0.5 and steering <= 0.5):
+        #     reward += 0.5
 
-        if (speed_x < self._min_speed):
-            reward = 0
+        # if (speed_x < self._min_speed):
+        #     reward = 0
+
+        reward = reward * speed_x**2
 
         if(d > self.width):
             reward = 0
@@ -316,7 +323,7 @@ class TrackEnvironment(object):
             # update next starting position
             self._start = nearest_point_index
             return True
-        return self._bored()
+        return False #self._bored()
 
     def step(self, action):
         """
@@ -332,7 +339,7 @@ class TrackEnvironment(object):
         track_angle = self._angle2points(q1, q2)
         state_new = self._transition(action, nearest_point_index)
         terminal = self._is_terminal(nearest_point_index)
-        sensors = state_new.sensors
+        sensors = state_new["sensors"]
         reward = self._reward(sensors[2], sensors[5], terminal, nearest_point_index, action[0])
         return state_new, reward, terminal
 
@@ -350,12 +357,14 @@ class TrackEnvironment(object):
         sensors = self._get_sensors(self._start)
         if self._render: image = self.render_and_vision()
         if self._vision:
-            state_new = col.namedtuple("observation", ["sensors", "image"])
-            return state_new(sensors = sensors,
-                            image = image)
+            state_new = {}
+            state_new["sensors"] = sensors
+            state_new["image"] = image
+            return state_new
         else:
-            state_new = col.namedtuple("observation", ["sensors"])
-            return state_new(sensors = sensors)
+            state_new = {}
+            state_new["sensors"] = sensors
+            return state_new
 
     def render_and_vision(self):
         """
@@ -375,7 +384,7 @@ class TrackEnvironment(object):
             height = 1000
             image = np.array(np.frombuffer(data, dtype=np.uint8).reshape((width, height, 3)))
             image = np.flip(image, axis = 0)
-            resized = cv2.resize(image, dsize=(64, 64), interpolation=cv2.INTER_CUBIC)
+            resized = cv2.resize(image, dsize=(self.img_width, self.img_height), interpolation=cv2.INTER_CUBIC)
             # plt.imshow(resized)
             # plt.show()
             return resized

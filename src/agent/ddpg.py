@@ -8,23 +8,45 @@ from src.agent.utils.replay_buffer import ReplayBuffer
 from src.agent.utils.action_noise import OUActionNoise
 from src.agent.network.actor import Actor
 from src.agent.network.critic import Critic
+from src.agent.network.encoder import Encoder
 
 class Agent(object):
     """
     DDPG agent
     """
-    def __init__(self, state_dims, action_dims, action_boundaries, actor_lr = 1e-5,
-                critic_lr = 1e-4, batch_size = 64, gamma = 0.99, actor_update_delay = 2,
-                rand_steps = 1, buf_size = 10000, tau = 1e-3, fcl1_size = 400, fcl2_size = 600):
-                
-        tf.random.set_seed(0)
+    def __init__(self, state_dims, action_dims, action_boundaries, hyperparams):
+
+        physical_devices = tf.config.list_physical_devices('GPU')
+        tf.config.experimental.set_memory_growth(physical_devices[0], True)
+
+        actor_lr = hyperparams["actor_lr"]
+        critic_lr = hyperparams["critic_lr"]
+        batch_size = hyperparams["batch_size"]
+        gamma = hyperparams["gamma"]
+        rand_steps = hyperparams["rand_steps"]
+        buf_size = int(hyperparams["buf_size"])
+        tau = hyperparams["tau"]
+        fcl1_size = hyperparams["fcl1_size"]
+        fcl2_size = hyperparams["fcl2_size"]
+
+        img_height = hyperparams["img_height"]
+        img_width = hyperparams["img_width"]
+        stack_depth = hyperparams["stack_depth"]
+
         # action size
         self.n_states = state_dims[0]
         # state size
         self.n_actions = action_dims[0]
         self.batch_size = batch_size
+
+        self.img_height = img_height
+        self.img_width = img_width
+        self.stack_depth = stack_depth
+
+        frame_shape = (self.stack_depth, self.img_height, self.img_width, 3)
+
         # experience replay buffer
-        self._memory = ReplayBuffer(buf_size, state_dims, action_dims)
+        self._memory = ReplayBuffer(buf_size, input_shape = state_dims, frame_shape = frame_shape, output_shape = action_dims)
         # noise generator
         self._noise = OUActionNoise(mu=np.zeros(action_dims))
         # Bellman discount factor
@@ -33,10 +55,11 @@ class Agent(object):
         self.lower_bound = action_boundaries[0]
         self.upper_bound = action_boundaries[1]
 
+
         # number of episodes for random action exploration
         self.rand_steps = rand_steps - 1
 
-        self.actor_update_delay = actor_update_delay
+        self.actor_update_delay = hyperparams["actor_update_delay"]
 
         # turn off most logging
         logging.getLogger("tensorflow").setLevel(logging.FATAL)
@@ -45,16 +68,19 @@ class Agent(object):
         self.path_actor = "./models/actor/actor" + date
         self.path_critic = "./models/critic/actor" + date
 
+
+        # encoder support
+        self.encoder = Encoder(stack_depth = stack_depth, img_height = img_height, img_width = img_width)
+
         # actor class
-        self.actor = Actor(state_dims = state_dims, action_dims = action_dims,
-                            lr = actor_lr, batch_size = batch_size, tau = tau,
-                            upper_bound = self.upper_bound,
-                            fcl1_size = fcl1_size, fcl2_size = fcl2_size)
+        self.actor = Actor(state_dims = state_dims, action_dims = action_dims, lr = actor_lr, batch_size = batch_size,
+            tau = tau, upper_bound = self.upper_bound, img_width = img_width, img_height = img_height, stack_depth = stack_depth,
+            fcl1_size = fcl1_size, fcl2_size = fcl2_size, encoder = self.encoder)
         # critic class
-        self.critic = Critic(state_dims = state_dims, action_dims = action_dims,
-                            lr = critic_lr, batch_size = batch_size, tau = tau,
-                            lower_bound = self.lower_bound, upper_bound = self.upper_bound,
-                            noise_bound = self.upper_bound / 10, fcl1_size = fcl1_size, fcl2_size = fcl2_size)
+        self.critic = Critic(state_dims = state_dims, action_dims = action_dims, lr = critic_lr, batch_size = batch_size, tau = tau,
+            img_width= img_width, img_height = img_height, stack_depth = stack_depth, lower_bound = self.lower_bound, upper_bound = self.upper_bound,
+            noise_bound = self.upper_bound / 10, fcl1_size = fcl1_size, fcl2_size = fcl2_size, encoder = self.encoder)
+
 
     def get_action(self, state, step):
         """
@@ -64,9 +90,15 @@ class Agent(object):
         #take only random actions for the first episode
         if(step > self.rand_steps):
             noise = self._noise()
-            state = state.reshape(self.n_states, 1).T
-            action = self.actor.model.predict(state)[0]
+            frames = np.asarray(state["image"])
+            frames = tf.expand_dims(frames, axis = 0)
+
+            state = state.copy()
+            state = state["sensors"]
+            state = tf.expand_dims(state, axis = 0)
+            action = self.actor.model.predict([state, frames])
             action_p = action + noise
+            action_p = action_p[0]
         else:
             #explore the action space quickly
             action_p = np.random.uniform(self.lower_bound, self.upper_bound, self.n_actions)
@@ -94,38 +126,43 @@ class Agent(object):
 
     def train_helper(self, step):
         # get experience batch
-        states, actions, rewards, terminal, states_n = self._memory.sample(self.batch_size)
+        states, frames, actions, rewards, terminal, states_n = self._memory.sample(self.batch_size)
+
         states = tf.convert_to_tensor(states)
+        frames = tf.convert_to_tensor(frames)
         actions = tf.convert_to_tensor(actions)
         rewards = tf.convert_to_tensor(rewards)
         rewards = tf.cast(rewards, dtype=tf.float32)
         states_n = tf.convert_to_tensor(states_n)
 
         # train the critic before the actor
-        self.train_critic(states, actions, rewards, terminal, states_n)
+        self.train_critic(states, frames, actions, rewards, terminal, states_n)
         # delayed actor (policy) update
+        actor_loss = 0
         if (step + 1) % self.actor_update_delay == 0:
-            self.train_actor(states)
+            actor_loss = self.train_actor(states, frames)
 
         #update the target models
         self.critic.update_target()
         # delayed actor (policy) update
         if (step + 1) % self.actor_update_delay == 0:
             self.actor.update_target()
+        return actor_loss
 
-    def train_critic(self, states, actions, rewards, terminal, states_n):
+    def train_critic(self, states, frames, actions, rewards, terminal, states_n):
         """
         Use updated Q targets to train the critic network
         """
         # TODO cleaner code, ugly passing of actor target model
-        self.critic.train(states, actions, rewards, terminal, states_n, self.actor.target_model, self.gamma)
+        self.critic.train(states, frames, actions, rewards, terminal, states_n, self.actor.target_model, self.gamma)
 
-    def train_actor(self, states):
+    def train_actor(self, states, frames):
         """
         Train the actor network with the critic evaluation
         """
         # TODO cleaner code, ugly passing of critic model
-        self.actor.train(states, self.critic.model)
+        loss = self.actor.train(states, frames, self.critic.model)
+        return loss
 
     def remember(self, state, state_new, action, reward, terminal):
         """

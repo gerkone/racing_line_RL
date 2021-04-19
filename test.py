@@ -1,6 +1,8 @@
 import os, sys
 import numpy as np
 import cv2
+import yaml
+import collections
 import matplotlib.pyplot as plt
 
 from src.simulation.environment import TrackEnvironment, manual
@@ -16,37 +18,52 @@ def preprocess(image):
     image = image.flatten()
     return image
 
+
 def main():
-    #TODO args to load model
+    hyperparams = {}
+    vision = True
+
+    with open("src/agent/hyperparams.yaml", 'r') as stream:
+        try:
+            hyperparams = yaml.safe_load(stream)
+        except yaml.YAMLError as exc:
+            print(exc)
+
     #get simulation environment
-    env = TrackEnvironment("./tracks/track_4387235659010134370_ver1.npy", render = True, vision = False, width = 1.0)
+    env = TrackEnvironment("./tracks/track_4387235659010134370_ver1.npy", render = True, vision = vision, width = 1.0,
+            img_width = hyperparams["img_width"], img_height = hyperparams["img_height"])
     state_dims = [env.n_states]
     action_dims = [env.n_actions]
     action_boundaries = [-1,1]
     #create agent with environment parameters
     agent = Agent(state_dims = state_dims, action_dims = action_dims,
-                action_boundaries = action_boundaries, actor_lr = 1e-6,
-                critic_lr = 2*1e-6, batch_size = 64, gamma = 0.99, rand_steps = 0,
-                buf_size = int(1e4), tau = 0.001, fcl1_size = 600, fcl2_size = 400)
+            action_boundaries = action_boundaries, hyperparams = hyperparams)
     np.random.seed(0)
+
+    frame_stack = collections.deque(maxlen=hyperparams["stack_depth"])
 
     scores = []
     #training loop: call remember on predicted states and train the models
     for i in range(N_EPISODES):
         #get initial state
         state = env.reset()
-        # temporary
-        state = state.sensors
         terminal = False
         score = 0
+
+        frame_stack.clear()
+        frame_stack.append(state["image"])
+        frame_stack.append(state["image"])
+        frame_stack.append(state["image"])
+        state["image"] = frame_stack
+
         #proceed until reaching an exit state
         while not terminal:
             #predict new action
             action = agent.get_action(state, i)
             #perform the transition according to the predicted action
             state_new, reward, terminal = env.step(action)
-            # temporary
-            state_new = state_new.sensors
+            frame_stack.append(state_new["image"])
+            state_new["image"] = frame_stack
 
             #store the transaction in the memory
             agent.remember(state, state_new, action, reward, terminal)
