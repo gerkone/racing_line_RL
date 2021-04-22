@@ -42,7 +42,7 @@ bool decellerate = false;
 bool steeringleft = false;
 bool steeringright = false;
 
-bool cameraAttacedToCar = false;
+bool cameraAttacedToCar = true;
 
 float backmousex=0, backmousey=0;
 bool mouseblocked = false;
@@ -718,6 +718,7 @@ int main(void){
     if (!glfwInit()) {exit(EXIT_FAILURE);}
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    //Cambiare qui per modificare grandezza finestra
     GLFWwindow* window = glfwCreateWindow(1000, 1000, "Racing Line RL", NULL, NULL);
     glfwMakeContextCurrent(window);
     if (glewInit() != GLEW_OK){exit(EXIT_FAILURE);}

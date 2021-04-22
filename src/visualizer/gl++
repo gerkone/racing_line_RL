@@ -1,2 +1,2 @@
 #!/bin/bash
-g++ $1 -o run -lglfw -pthread -ldl -lGLU -lGL -lrt -lXrandr -lXxf86vm -lXi -lXinerama -lX11 -lGLEW -I/usr/local -lzmq
+g++ $1 -o $2 -lglfw -pthread -ldl -lGLU -lGL -lrt -lXrandr -lXxf86vm -lXi -lXinerama -lX11 -lGLEW -I/usr/local -lzmq

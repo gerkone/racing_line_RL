@@ -25,7 +25,7 @@ class TrackEnvironment(object):
     [1] steering
     """
     def __init__(self, trackpath, width = 1.5, dt = 0.015, maxMa=6, maxDelta=1, render = True, videogame = True, vision = True,
-                    eps = 0.5, max_front = 10, rangefinder_angle = 0.05, rangefinder_range = 20, img_width = 64, img_height = 64,
+                    eps = 0.5, max_front = 10, rangefinder_angle = 0.05, rangefinder_range = 20, img_width = 100, img_height = 100,
                     min_speed = 0.5, bored_after = 20, discrete = False, discretization_steps = 4):
         # vehicle model settings
         self.car = Vehicle(maxMa, maxDelta)
@@ -87,6 +87,8 @@ class TrackEnvironment(object):
 
         if self._render:
             self._videogame = videogame
+
+    def setup_comms(self):
         if self._render:
             # input from the rendering program mode
             import zmq
@@ -94,8 +96,8 @@ class TrackEnvironment(object):
 
             # run the visualizer
             os.chdir("src/visualizer/")
-            self.visualizer_proc = Popen(["./run"], shell=True,
-                        stdin=None, stdout=None, stderr=None, close_fds=True)
+            visualizer_proc = Popen(["./racing_line_rl"], shell=True,
+                    stdin=None, stdout=None, stderr=None, close_fds=True)
             context = zmq.Context()
             self._socket = context.socket(zmq.REP)
             self._socket.bind("tcp://*:55555")
@@ -109,6 +111,7 @@ class TrackEnvironment(object):
 
             self._socket.recv()
             print("Communication OK!")
+            return visualizer_proc.pid
 
     def _nearest_point(self):
         """
@@ -380,13 +383,14 @@ class TrackEnvironment(object):
         # wait for confirmation
         data = self._socket.recv()
         if self._vision:
-            width = 1000
-            height = 1000
-            image = np.array(np.frombuffer(data, dtype=np.uint8).reshape((width, height, 3)))
+            raw = np.frombuffer(data, dtype=np.uint8)
+            square = 1000
+            image = np.array(raw.reshape((square, square, 3)))
             image = np.flip(image, axis = 0)
-            resized = cv2.resize(image, dsize=(self.img_width, self.img_height), interpolation=cv2.INTER_CUBIC)
-            # plt.imshow(resized)
-            # plt.show()
+            if (square > self.img_width) :
+                resized = cv2.resize(image, dsize=(self.img_width, self.img_height), interpolation=cv2.INTER_CUBIC)
+                # plt.imshow(resized)
+                # plt.show()
             return resized
 
     def get_action_videogame(self):
