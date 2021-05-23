@@ -42,7 +42,6 @@ def main():
     np.random.seed(0)
 
     frame_stack = collections.deque(maxlen=hyperparams["stack_depth"])
-
     scores = []
     #training loop: call remember on predicted states and train the models
     try:
@@ -76,8 +75,9 @@ def main():
                 score += reward
             scores.append(score)
             print("Iteration {:d} --> score {:.2f}. Running average {:.2f}".format( i, score, np.mean(scores)))
-            # if i % CHECKPOINT:
-            #     agent.save()
+            if i > 0 and i % 5 == 0:
+                agent.save_models()
+                print("Models saved")
         plt.plot(scores)
         plt.xlabel("Episode")
         plt.ylabel("Cumulate reward")

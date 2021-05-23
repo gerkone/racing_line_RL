@@ -16,7 +16,7 @@ class Critic(object):
     """
     def __init__(self, state_dims, action_dims, lr, batch_size, tau,
                 fcl1_size, fcl2_size, noise_bound, lower_bound, upper_bound,
-                stack_depth, img_height, img_width, encoder):
+                stack_depth, img_height, img_width, encoder, save_dir):
         self.state_dims = state_dims
         self.action_dims = action_dims
         # learning rate
@@ -31,18 +31,23 @@ class Critic(object):
         self.img_height = img_height
         self.img_width = img_width
 
-        self.model = self.build_network(encoder.model)
-        # self.model.summary()
-        #duplicate model for target
-        self.target_model = self.build_network(encoder.model)
-        self.target_model.set_weights(self.model.get_weights())
+        try:
+            # load model if present
+            self.model = tf.keras.models.load_model(save_dir + "/critic")
+            self.target_model = tf.keras.models.load_model(save_dir +"/critic_target")
+            print("Loaded saved critic models")
+        except:
+            self.model = self.build_network(encoder.model)
+            #duplicate model for target
+            self.target_model = self.build_network(encoder.model)
+            self.target_model.set_weights(self.model.get_weights())
+            self.model.summary()
+
+        self.optimizer = Adam(self.lr)
 
         self.noise_bound = noise_bound
         self.lower_bound = lower_bound
         self.upper_bound = upper_bound
-
-        #generate gradient function
-        self.optimizer = Adam(self.lr)
 
     def build_network(self, encoder_model):
         """

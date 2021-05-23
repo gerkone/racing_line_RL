@@ -10,14 +10,16 @@ from src.agent.network.actor import Actor
 from src.agent.network.critic import Critic
 from src.agent.network.encoder import Encoder
 
+save_dir = "../agent/trained_models"
+
 class Agent(object):
     """
     DDPG agent
     """
     def __init__(self, state_dims, action_dims, action_boundaries, hyperparams):
 
-        physical_devices = tf.config.list_physical_devices('GPU')
-        tf.config.experimental.set_memory_growth(physical_devices[0], True)
+        # physical_devices = tf.config.list_physical_devices('GPU')
+        # tf.config.experimental.set_memory_growth(physical_devices[0], True)
 
         actor_lr = hyperparams["actor_lr"]
         critic_lr = hyperparams["critic_lr"]
@@ -64,23 +66,25 @@ class Agent(object):
         # turn off most logging
         logging.getLogger("tensorflow").setLevel(logging.FATAL)
 
-        date = datetime.now().strftime("%m%d%Y_%H%M%S")
-        self.path_actor = "./models/actor/actor" + date
-        self.path_critic = "./models/critic/actor" + date
-
-
         # encoder support
         self.encoder = Encoder(stack_depth = stack_depth, img_height = img_height, img_width = img_width)
 
         # actor class
         self.actor = Actor(state_dims = state_dims, action_dims = action_dims, lr = actor_lr, batch_size = batch_size,
             tau = tau, upper_bound = self.upper_bound, img_width = img_width, img_height = img_height, stack_depth = stack_depth,
-            fcl1_size = fcl1_size, fcl2_size = fcl2_size, encoder = self.encoder)
+            fcl1_size = fcl1_size, fcl2_size = fcl2_size, save_dir = save_dir, encoder = self.encoder)
         # critic class
         self.critic = Critic(state_dims = state_dims, action_dims = action_dims, lr = critic_lr, batch_size = batch_size, tau = tau,
             img_width= img_width, img_height = img_height, stack_depth = stack_depth, lower_bound = self.lower_bound, upper_bound = self.upper_bound,
-            noise_bound = self.upper_bound / 10, fcl1_size = fcl1_size, fcl2_size = fcl2_size, encoder = self.encoder)
+            noise_bound = self.upper_bound / 10, fcl1_size = fcl1_size, fcl2_size = fcl2_size, save_dir = save_dir, encoder = self.encoder)
 
+
+    def save_models(self):
+        self.actor.model.save(save_dir + "/actor")
+        self.actor.target_model.save(save_dir + "/actor_target")
+
+        self.critic.model.save(save_dir + "/critic")
+        self.critic.target_model.save(save_dir + "/critic_target")
 
     def get_action(self, state, step):
         """

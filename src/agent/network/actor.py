@@ -12,7 +12,7 @@ stochastic funcion approssimator for the deterministic policy map u : S -> A
 (with S set of states, A set of actions)
 """
 class Actor(object):
-    def __init__(self, state_dims, action_dims, lr, batch_size, tau, fcl1_size,
+    def __init__(self, state_dims, action_dims, lr, batch_size, tau, fcl1_size, save_dir,
             fcl2_size, upper_bound, stack_depth, img_height, img_width, encoder):
         self.state_dims = state_dims
         self.action_dims = action_dims
@@ -29,11 +29,17 @@ class Actor(object):
         self.img_height = img_height
         self.img_width = img_width
 
-        self.model = self.build_network(encoder.model)
-        # self.model.summary()
-        #duplicate model for target
-        self.target_model = self.build_network(encoder.model)
-        self.target_model.set_weights(self.model.get_weights())
+        try:
+            # load model if present
+            self.model = tf.keras.models.load_model(save_dir + "/actor")
+            self.target_model = tf.keras.models.load_model(save_dir +"/actor_target")
+            print("Loaded saved actor models")
+        except:
+            self.model = self.build_network(encoder.model)
+            #duplicate model for target
+            self.target_model = self.build_network(encoder.model)
+            self.target_model.set_weights(self.model.get_weights())
+            self.model.summary()
 
         self.optimizer = Adam(self.lr)
 
