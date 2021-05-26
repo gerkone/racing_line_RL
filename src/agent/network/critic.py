@@ -60,7 +60,7 @@ class Critic(object):
         # -- state input --
         state_input_layer = Input(shape=(self.state_dims), name = "State_in")
         # -- embedded encoder as submodel --
-        encoder_input_layer = Input(shape = (self.stack_depth, self.img_height, self.img_width, 3), name = "Frame_in")
+        encoder_input_layer = Input(shape = (self.stack_depth, self.img_height, self.img_width, 1), name = "Frame_in")
         encoder = encoder_model(encoder_input_layer)
 
         fcl_encoder = Dense(self.fcl2_size, name = "Encoder_FCL")(encoder)

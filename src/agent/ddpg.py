@@ -45,7 +45,7 @@ class Agent(object):
         self.img_width = img_width
         self.stack_depth = stack_depth
 
-        frame_shape = (self.stack_depth, self.img_height, self.img_width, 3)
+        frame_shape = (self.stack_depth, self.img_height, self.img_width, 1)
 
         # experience replay buffer
         self._memory = ReplayBuffer(buf_size, input_shape = state_dims, frame_shape = frame_shape, output_shape = action_dims)

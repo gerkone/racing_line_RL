@@ -83,7 +83,8 @@ def main():
         plt.ylabel("Cumulate reward")
         plt.show()
     except Exception as e:
-        print(e)
+        import traceback
+        traceback.print_exc()
         if render:
             from subprocess import Popen
             Popen(["kill", "-9", str(visualizer_pid)])

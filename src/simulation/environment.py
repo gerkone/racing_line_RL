@@ -391,6 +391,8 @@ class TrackEnvironment(object):
                 image = cv2.resize(image, dsize=(self.img_width, self.img_height), interpolation=cv2.INTER_CUBIC)
                 # plt.imshow(resized)
                 # plt.show()
+            image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+            image = np.expand_dims(image, axis = -1)
             return image
 
     def get_action_videogame(self):

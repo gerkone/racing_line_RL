@@ -58,7 +58,7 @@ class Actor(object):
         fcl2 = Dense(self.fcl2_size, name = "Second_FCL")(fcl1)
         fcl2 = Activation("relu", name = "ReLU_2")(fcl2)
         # -- embedded encoder as submodel --
-        encoder_input_layer = Input(shape = (self.stack_depth, self.img_height, self.img_width, 3))
+        encoder_input_layer = Input(shape = (self.stack_depth, self.img_height, self.img_width, 1))
         encoder = encoder_model(encoder_input_layer)
 
         fcl_encoder = Dense(self.fcl2_size, name = "Encoder_FCL")(encoder)
