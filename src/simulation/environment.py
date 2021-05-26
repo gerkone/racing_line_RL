@@ -384,14 +384,14 @@ class TrackEnvironment(object):
         data = self._socket.recv()
         if self._vision:
             raw = np.frombuffer(data, dtype=np.uint8)
-            square = 1000
+            square = 100
             image = np.array(raw.reshape((square, square, 3)))
             image = np.flip(image, axis = 0)
             if (square > self.img_width) :
-                resized = cv2.resize(image, dsize=(self.img_width, self.img_height), interpolation=cv2.INTER_CUBIC)
+                image = cv2.resize(image, dsize=(self.img_width, self.img_height), interpolation=cv2.INTER_CUBIC)
                 # plt.imshow(resized)
                 # plt.show()
-            return resized
+            return image
 
     def get_action_videogame(self):
         if self._videogame:
