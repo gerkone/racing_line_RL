@@ -26,7 +26,7 @@ class TrackEnvironment(object):
     """
     def __init__(self, trackpath, width = 1.5, dt = 0.015, maxMa=6, maxDelta=1, render = True, videogame = True, vision = True,
                     eps = 0.5, max_front = 10, rangefinder_angle = 0.05, rangefinder_range = 20, img_width = 100, img_height = 100,
-                    min_speed = 0.5, bored_after = 20, discrete = False, discretization_steps = 4):
+                    min_speed = 0.2, bored_after = 100, discrete = False, discretization_steps = 4):
         # vehicle model settings
         self.car = Vehicle(maxMa, maxDelta)
         self.dt = dt
@@ -239,8 +239,8 @@ class TrackEnvironment(object):
         apply the action on the model and return sensory (state) value
         """
         #update model paramters with new action
-        self.car.setAcceleration(0.3) #action[0])
-        self.car.setSteering(action[1] * 0.8)
+        self.car.setAcceleration(action[0])
+        self.car.setSteering(action[1])
         #step forward model by dt
         self.car.integrate(self.dt)
         #get new state sensor values
@@ -257,29 +257,13 @@ class TrackEnvironment(object):
             return state_new
 
     def _reward(self, speed_x, angle, terminal, nearest_point_index, steering):
-        """
-        """
 
         d = self._dist(self._track[nearest_point_index])
-        if(d > self.width * 0.4):
-            reward = 0.8
-        elif(d > self.width * 0.6):
-            reward = 0.4
-        elif(d > self.width * 0.8):
-            reward = 0.1
-        else:
-            reward = 1
-
-        # if(steering >= -0.5 and steering <= 0.5):
-        #     reward += 0.5
-
-        # if (speed_x < self._min_speed):
-        #     reward = 0
-
-        reward = reward * speed_x**2
-
-        if(d > self.width):
-            reward = 0
+        reward = speed_x * np.cos(angle)
+        if d > self.width:
+            reward = -1
+        if terminal:
+            reward = -10
 
         return reward
 
@@ -326,7 +310,7 @@ class TrackEnvironment(object):
             # update next starting position
             self._start = nearest_point_index
             return True
-        return False #self._bored()
+        return self._bored()
 
     def step(self, action):
         """
@@ -393,6 +377,7 @@ class TrackEnvironment(object):
                 # plt.show()
             image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
             image = np.expand_dims(image, axis = -1)
+            image = image.astype(np.uint8)
             return image
 
     def get_action_videogame(self):

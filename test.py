@@ -65,7 +65,10 @@ def main():
                 state_new, reward, terminal = env.step(action)
                 frame_stack.append(state_new["image"])
                 state_new["image"] = frame_stack
-
+                # from PIL import Image
+                # img = Image.fromarray(state_new["image"][0][..., 0])
+                # img.show()
+                # input()
                 #store the transaction in the memory
                 agent.remember(state, state_new, action, reward, terminal)
                 #adjust the weights according to the new transaction
