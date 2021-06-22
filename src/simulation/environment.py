@@ -317,6 +317,8 @@ class TrackEnvironment(object):
 
         d = self._dist(self._track[nearest_point_index])
         reward = speed_x * np.cos(angle)
+        if speed_x < self._min_speed:
+            reward = -1
         if d > self.width:
             reward = -1
         if terminal:
@@ -384,7 +386,7 @@ class TrackEnvironment(object):
         state_new = self._transition(action, nearest_point_index)
         terminal = self._is_terminal(nearest_point_index)
         sensors = state_new["sensors"]
-        reward = self._reward(sensors[2], sensors[5], terminal, nearest_point_index, action[0])
+        reward = self._reward(sensors[23], sensors[22], terminal, nearest_point_index, action[0])
         return state_new, reward, terminal
 
     def reset(self):

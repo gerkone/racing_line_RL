@@ -15,7 +15,7 @@ CHECKPOINT = 100
 def main():
     hyperparams = {}
     vision = False
-    render = False or vision
+    render = True or vision
     with open("src/agent/hyperparams.yaml", 'r') as stream:
         try:
             hyperparams = yaml.safe_load(stream)
