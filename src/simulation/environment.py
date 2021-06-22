@@ -7,6 +7,7 @@ import re
 import matplotlib.pyplot as plt
 import cv2
 import pyclipper
+from shapely.geometry import LineString, Point
 
 from src.simulation.model import Vehicle
 
@@ -15,18 +16,17 @@ class TrackEnvironment(object):
     State array of 6 elements
     state[0] left distance from track side
     state[1] right distance from track side
-    state[2] front distance from track side (capped at rangefinder_range)
-    state[3] longitudinal velocity
-    state[4] transversal velocity
-    state[5] angle with track axis
+    state[2:12] rangefinders
+    state[12:22] curvature fronteer
+    state[22] angle
+    state[23:25] longitudinal and transversal velocities
 
     Action array of 2 elements
     [0] combined Throttle/Break
     [1] steering
     """
-    def __init__(self, trackpath, width = 1.5, dt = 0.015, maxMa=6, maxDelta=1, render = True, videogame = True, vision = True,
-                    eps = 0.5, max_front = 10, rangefinder_angle = 0.05, rangefinder_range = 20, img_width = 100, img_height = 100,
-                    min_speed = 0.2, bored_after = 100, discrete = False, discretization_steps = 4):
+    def __init__(self, trackpath, width = 1.5, dt = 0.03, maxMa=6, maxDelta=1, render = True, videogame = True, vision = True, fronteer_size = 10,
+                    n_beams = 10, rangefinder_cap = 1, curvature_step = 5, min_speed = 0.2, bored_after = 100, discrete = False, discretization_steps = 4):
         # vehicle model settings
         self.car = Vehicle(maxMa, maxDelta)
         self.dt = dt
@@ -36,13 +36,9 @@ class TrackEnvironment(object):
 
         self._vision = vision
 
-        self.img_width = img_width
-        self.img_height = img_height
-
-        # if set use the discretizer method to emulate a discrete action space
-        self.n_states = 6
         # add state to accomodate image
         self.discrete = discrete
+        # if set use the discretizer method to emulate a discrete action space
         if(not self.discrete):
             # continuous action setting
             # state/action settings
@@ -61,15 +57,26 @@ class TrackEnvironment(object):
         # load track array
         self._track = np.load(trackpath)
 
-        self._rangefinder_range = rangefinder_range
-        self._rangefinder_angle = rangefinder_angle
+        # -- sensor related params --
+        self._curvature_step = curvature_step
+        self._fronteer_size = fronteer_size
+        self._n_beams = n_beams
+        # rangefinder distance cap
+        self._rangefinder_cap = rangefinder_cap
+        # get n_beams lines in the range
+        self._beam_space = np.linspace(-pi/6, pi/6, self._n_beams, endpoint = True)
+
+        self.n_states = 2 + self._fronteer_size + self._n_beams + 1 + 2
 
         # inner and outer borders
         offsetter = pyclipper.PyclipperOffset()
         scaled = pyclipper.scale_to_clipper(self._track)
         offsetter.AddPath(scaled, pyclipper.JT_SQUARE, pyclipper.ET_CLOSEDPOLYGON)
-        self._inner_border = pyclipper.scale_from_clipper(offsetter.Execute(pyclipper.scale_to_clipper(-self.width)))[0]
-        self._outer_border = pyclipper.scale_from_clipper(offsetter.Execute(pyclipper.scale_to_clipper(self.width)))[0]
+        inner_offset = pyclipper.scale_from_clipper(offsetter.Execute(pyclipper.scale_to_clipper(-self.width)))[0]
+        outer_offset = pyclipper.scale_from_clipper(offsetter.Execute(pyclipper.scale_to_clipper(self.width)))[0]
+
+        self._inner_border = LineString(inner_offset)
+        self._outer_border = LineString(outer_offset)
 
         # agent/training parameters
         self._still = 0
@@ -78,12 +85,6 @@ class TrackEnvironment(object):
         self._start = 0
 
         self._steps = 0
-
-        # sensors parameters
-        # rangefinder tolerance
-        self.eps = eps
-        # rangefinder distance cap
-        self.max_front = max_front
 
         if self._render:
             self._videogame = videogame
@@ -119,119 +120,175 @@ class TrackEnvironment(object):
         """
         return min(range(len(self._track)), key = lambda i : self._dist(self._track[i]))
 
-    def _points_in_angle(self, ro, angle, poly, max):
-        """
-        return the points in the track border inside the angle ro
-        """
-        carpos = self.car.getPosition()
-        l = max / cos(ro)
-        # triangle with vertex on car, angle of ro and height of max
-        front_triangle = [carpos, [carpos[0] + l * cos(angle - ro), carpos[1] + l * sin(angle - ro)],
-            [carpos[0] + l * cos(angle + ro), carpos[1] + l * sin(angle + ro)]]
 
-        inside = [p for p in poly if self._inside_poly(p, front_triangle)]
-
-        return inside
-
-
-    def _dist(self, q_track, q_point = None):
+    def _dist(self, q_start, q_end = None):
         """
         pithagorean distance between two points
         """
-        if(q_point is None):
-            q_point = self.car.getPosition()
-        return sqrt(pow(q_point[0] - q_track[0], 2) + pow(q_point[1] - q_track[1], 2))
+        if(q_end is None):
+            q_end = self.car.getPosition()
+        return sqrt(pow(q_end[0] - q_start[0], 2) + pow(q_end[1] - q_start[1], 2))
 
     def _angle2points(self, q1, q2):
         angle = abs(asin((q2[1] - q1[1]) / self._dist(q1, q2)))
         if(q2[0] >= q1[0]):
             # right
             if(q2[1] >= q1[1]):
-                # print("first")
                 # first quadrant
                 angle = angle
             elif(q2[1] < q1[1]):
-                # print("fourth")
                 # fourth quandrant
                 angle = 2 * pi - angle
         elif(q2[0] < q1[0]):
             # left
             if(q2[1] >= q1[1]):
-                # print("second")
                 # second quadrant
                 angle = pi - angle
             elif(q2[1] < q1[1]):
-                # print("third")
                 # third quandrant
                 angle = pi + angle
 
         return angle % (2 * pi)
 
-    def _inside_poly(self, q, poly = None):
+    def _menger_curvature(self, p1, p2, p3, atol=1e-3):
         """
-        ray-casting algorithm for point in polygon
+        Inverse of the radius of the circle passing through p1,p2,p3
         """
-        if(poly is None):
-            poly = self._track
-        i = 0
-        j = len(poly) - 1
-        hits = 0
-        while i < len(poly):
-            xi = poly[i][0]
-            yi = poly[i][1]
-            xj = poly[j][0]
-            yj = poly[j][1]
-            j = i
-            i += 1
-            intersect = ((yi > q[1]) != (yj > q[1])) and (q[0] < (xj - xi) * (q[1] - yi) / (yj - yi) + xi)
-            if (intersect):
-                hits += 1
-        # odd hits = inside, even hits inside
-        return hits % 2
+
+        vec21 = np.array([p1[0]-p2[0], p1[1]-p2[1]])
+        vec23 = np.array([p3[0]-p2[0], p3[1]-p2[1]])
+
+        norm21 = np.linalg.norm(vec21)
+        norm23 = np.linalg.norm(vec23)
+
+        v = np.dot(vec21, vec23)/(norm21*norm23)
+
+        if(v <= 1.0 and v >= -1.0):
+            theta = np.arccos(v)
+            if np.isclose(theta - np.pi, 0.0, atol=atol):
+                theta = 0.0
+
+            dist13 = np.linalg.norm(vec21-vec23)
+
+            return 2 * np.sin(theta) / dist13
+        else:
+            # TODO: FloatingPointError, probably not solvable
+            return -1
+
+    def _curvature(self, start_idx):
+        """
+        get curvature of track at start_idx
+        """
+        p1 = self._track[start_idx]
+        p2 = self._track[(start_idx + self._curvature_step) % len(self._track)]
+        p3 = self._track[(start_idx + self._curvature_step * 2) % len(self._track)]
+
+        return self._menger_curvature(p1, p2, p3)
+
+    def _line_angle(self, x, y, angle, length):
+        """
+        returns a shapely line from start, angle and lenght
+        """
+        start = Point(x, y)
+        end_x = x + length * cos(angle)
+        end_y = y + length * sin(angle)
+        end = Point(end_x, end_y)
+
+        return LineString([start, end])
+
+    def _horizontal_distances(self, car_x, car_y, car_angle):
+        # car always runnig clockwise
+        # lines perpendicular to car
+        # pi/2 to the left
+        line_l = self._line_angle(car_x, car_y, car_angle - pi / 2, self.width * 2)
+        # pi/2 to the right
+        line_r = self._line_angle(car_x, car_y, car_angle + pi / 2, self.width * 2)
+
+        # should only be one interesction point
+        try:
+            if not line_l.is_valid:
+                raise Exception
+            q_outer = list(line_l.intersection(self._outer_border).coords)[0]
+            d_l = self._dist([q_outer[0], q_outer[1]], [car_x, car_y])
+        except Exception:
+            # for some reason no points were found
+            d_l = -1
+        try:
+            if not line_r.is_valid:
+                raise Exception
+            q_inner = list(line_r.intersection(self._inner_border).coords)[0]
+            d_r = self._dist([q_inner[0], q_inner[1]], [car_x, car_y])
+        except Exception:
+            # for some reason no points were found
+            d_r = -1
+        return d_l, d_r
+
+    def _rangefinders(self, car_x, car_y, car_angle, bounds = (-pi/6, pi/6)):
+        """
+        returns n_beams distances in between the bounds, from the car to the track limits
+        """
+
+        beams = [self._line_angle(car_x, car_y, angle, self._rangefinder_cap) for angle in self._beam_space]
+        # for each line get the closest intersect
+        # must consider both inner and outer track limits, car may be turned
+        ranges = []
+        for b in beams:
+            if b.is_valid:
+                inner_intersect = b.intersection(self._inner_border)
+                outer_intersect = b.intersection(self._outer_border)
+                intersects = list(inner_intersect.coords) + list(outer_intersect.coords)
+                if len(intersects) > 0:
+                    # get the distances of all the intersections
+                    distances = [self._dist([q[0], q[1]], [car_x, car_y]) for q in intersects]
+                    ranges.append(min(distances))
+                else:
+                    # nothing in range - capping
+                    ranges.append(self._rangefinder_cap)
+            else:
+                # TODO: fix
+                ranges.append(0)
+        return ranges
 
     def _get_sensors(self, nearest_point_index):
+        np.seterr('raise')
         """
         return distances and angle sensory values
         """
-        # current track angle
+        sensors = []
+        car_x, car_y = (self.car.getPosition()[0], self.car.getPosition()[1])
+        car_angle = self.car.getAngles()[0] % (2 * pi)
+
+        # left, right distance
+        d_l, d_r = self._horizontal_distances(car_x, car_y, car_angle)
+        outside_track = d_l < 0 or d_r < 0
+
+        sensors.extend([d_l, d_r])
+        # 10 rangefinders front
+        if not outside_track:
+            ranges = self._rangefinders(car_x, car_y, car_angle)
+        else:
+            ranges = [-1] * self._n_beams
+
+        sensors.extend(ranges)
+        # curvature fronteer, curvature of the next fronteer_size points
+        # between each point curvature_step * 2 to cover more track
+
+        curvature_fronteer = [self._curvature((nearest_point_index + (i * self._curvature_step * 2)) % len(self._track))
+                                for i in range(self._fronteer_size)]
+        sensors.extend(curvature_fronteer)
+        # track-relative angle
         q2 = self._track[nearest_point_index]
         # take a couple of points before to avoid superposition
         q1 = self._track[(nearest_point_index - 2) % len(self._track)]
         track_angle = self._angle2points(q1, q2)
-        # distance to track closest point
-        carpos = self.car.getPosition()
-        d = self._dist(self._track[nearest_point_index])
-        # sensor 0 and 1 -- left-right rangefinders
-        if self._inside_poly(carpos):
-            # inside
-            d_dx = d + self.width
-            d_sx = self.width - d
-        else:
-            # outside
-            d_dx = self.width - d
-            d_sx = d + self.width
-        # bound the distances for when outside the track
-        d_sx = min(max(0, d_sx), self.width * 2)
-        d_dx = min(max(0, d_dx), self.width * 2)
-        # sensor 5 -- track-relative angle
-        car_angle = self.car.getAngles()[0] % (2 * pi)
         angle = car_angle - track_angle
-        # sensor 2 -- front rangefinder
-        in_front = self._points_in_angle(self._rangefinder_angle, track_angle, self._inner_border, self._rangefinder_range)
-        in_front += self._points_in_angle(self._rangefinder_angle, track_angle, self._outer_border, self._rangefinder_range)
-        # closest border point
-        try:
-            d_front = self._dist(in_front[0])
-            for f in in_front[1:]:
-                dist = self._dist(f)
-                if(dist < d_front):
-                    d_front = dist
-        except IndexError:
-            # no points found
-            d_front = self._rangefinder_range
-
+        sensors.append(angle)
+        # speeds
         vx, vy = self.car.getVelocities()
-        return np.array([round(d_sx, 3), round(d_dx, 3), round(vx, 2), round(vy, 2), round(d_front, 3), round(angle, 3)])
+        sensors.extend([vx, vy])
+
+        sensors = [round(x, 6) for x in sensors]
+        return np.array(sensors)
 
 
     def _transition(self, action, nearest_point_index):
@@ -244,7 +301,7 @@ class TrackEnvironment(object):
         #step forward model by dt
         self.car.integrate(self.dt)
         #get new state sensor values
-        sensors = self._get_sensors(self._start)
+        sensors = self._get_sensors(nearest_point_index)
         if self._render: image = self.render_and_vision()
         if self._vision:
             state_new = {}
@@ -341,6 +398,7 @@ class TrackEnvironment(object):
         q1 = self._track[(self._start - 2) % len(self._track)]
         track_angle = self._angle2points(q1, q2)
         self.car.reset(q2[0], q2[1], track_angle)
+        # closest point is starting position
         sensors = self._get_sensors(self._start)
         if self._render: image = self.render_and_vision()
         if self._vision:

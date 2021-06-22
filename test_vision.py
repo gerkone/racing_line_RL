@@ -11,10 +11,17 @@ from src.agent.ddpg import Agent
 N_EPISODES = 1000000
 CHECKPOINT = 100
 
+def preprocess(image):
+    image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    # plt.imshow(image)
+    # plt.show()
+    image = image.flatten()
+    return image
+
 
 def main():
     hyperparams = {}
-    vision = False
+    vision = True
     render = True or vision
     with open("src/agent/hyperparams.yaml", 'r') as stream:
         try:
@@ -22,7 +29,8 @@ def main():
         except yaml.YAMLError as exc:
             print(exc)
         #get simulation environment
-    env = TrackEnvironment("./tracks/track_4387235659010134370.npy", render = render, vision = vision, width = 1.0)
+    env = TrackEnvironment("./tracks/track_4387235659010134370_ver1.npy", render = render, vision = vision, width = 1.0,
+            img_width = hyperparams["img_width"], img_height = hyperparams["img_height"])
     if render:
         visualizer_pid = env.setup_comms()
     state_dims = [env.n_states]
@@ -33,6 +41,7 @@ def main():
             action_boundaries = action_boundaries, hyperparams = hyperparams)
     np.random.seed(0)
 
+    frame_stack = collections.deque(maxlen=hyperparams["stack_depth"])
     scores = []
     #training loop: call remember on predicted states and train the models
     try:
@@ -41,13 +50,26 @@ def main():
             state = env.reset()
             terminal = False
             score = 0
+
+            frame_stack.clear()
+            frame_stack.append(state["image"])
+            frame_stack.append(state["image"])
+            frame_stack.append(state["image"])
+            state["image"] = frame_stack
+
             #proceed until reaching an exit state
             while not terminal:
                 #predict new action
                 action = agent.get_action(state, i)
                 #perform the transition according to the predicted action
                 state_new, reward, terminal = env.step(action)
-
+                frame_stack.append(state_new["image"])
+                state_new["image"] = frame_stack
+                # from PIL import Image
+                # img = Image.fromarray(state_new["image"][0][..., 0])
+                # img.show()
+                # input()
+                #store the transaction in the memory
                 agent.remember(state, state_new, action, reward, terminal)
                 #adjust the weights according to the new transaction
                 agent.learn(i)

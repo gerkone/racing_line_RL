@@ -2,8 +2,12 @@ actor_lr : 0.000001
 critic_lr : 0.00001
 batch_size : 8
 gamma : 0.99
+rand_steps : 0
 buf_size : 10000
 tau : 0.001
 fcl1_size : 200
 fcl2_size : 400
 actor_update_delay : 2
+img_width : 100
+img_height : 100
+stack_depth: 3
