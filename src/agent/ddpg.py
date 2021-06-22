@@ -9,7 +9,7 @@ from src.agent.utils.action_noise import OUActionNoise
 from src.agent.network.actor import Actor
 from src.agent.network.critic import Critic
 
-save_dir = "/saved_models/ddpg/model"
+save_dir = "saved_models/ddpg/model"
 
 class Agent(object):
     """

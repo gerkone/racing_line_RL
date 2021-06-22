@@ -8,3 +8,4 @@ pyclipper==1.2.1
 tensorflow_gpu==2.4.1
 pyzmq==22.0.3
 tensorflow==2.4.1
+shapely>=1.7.1

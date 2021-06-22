@@ -15,7 +15,7 @@ CHECKPOINT = 100
 def main():
     hyperparams = {}
     vision = False
-    render = True or vision
+    render = False or vision
     with open("src/agent/hyperparams.yaml", 'r') as stream:
         try:
             hyperparams = yaml.safe_load(stream)
@@ -56,7 +56,7 @@ def main():
                 score += reward
             scores.append(score)
             print("Iteration {:d} --> score {:.2f}. Running average {:.2f}".format( i, score, np.mean(scores)))
-            if i > 0 and i % 5 == 0:
+            if i > 0 and i % 20 == 0:
                 agent.save_models()
                 print("Models saved")
         plt.plot(scores)
