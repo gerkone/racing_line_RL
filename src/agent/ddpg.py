@@ -9,7 +9,7 @@ from src.agent.utils.action_noise import OUActionNoise
 from src.agent.network.actor import Actor
 from src.agent.network.critic import Critic
 
-save_dir = "saved_models/ddpg/model"
+save_dir = "../saved_models/ddpg/model"
 
 class Agent(object):
     """
@@ -84,12 +84,11 @@ class Agent(object):
         Fill the buffer up to the batch size, then train both networks with
         experience from the replay buffer.
         """
-        avg_loss = 0
+        loss = 0
         if self._memory.isReady(self.batch_size):
-            for r in range(int(len(self._memory) / self.batch_size)):
-                avg_loss += self.train_helper()
+            loss = self.train_helper()
 
-        return avg_loss / (len(self._memory) / self.batch_size)
+        return loss
 
     def save_models(self):
         self.actor.model.save(save_dir + "/actor")

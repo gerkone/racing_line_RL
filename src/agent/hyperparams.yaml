@@ -1,9 +1,9 @@
-actor_lr : 0.000001
-critic_lr : 0.00001
-batch_size : 128
+actor_lr : 0.00001
+critic_lr : 0.0001
+batch_size : 64
 gamma : 0.99
-buf_size : 10000
+buf_size : 1000000
 tau : 0.001
-fcl1_size : 32
-fcl2_size : 64
+fcl1_size : 300
+fcl2_size : 400
 actor_update_delay : 2

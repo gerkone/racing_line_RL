@@ -5,6 +5,7 @@ import yaml
 import collections
 import matplotlib.pyplot as plt
 
+
 from src.simulation.environment import TrackEnvironment, manual
 from src.agent.ddpg import Agent
 
@@ -12,17 +13,18 @@ N_EPISODES = 1000000
 CHECKPOINT = 100
 
 
-def main():
+def main(headless):
     hyperparams = {}
     vision = False
-    render = True or vision
+    render = not headless or vision
     with open("src/agent/hyperparams.yaml", 'r') as stream:
         try:
             hyperparams = yaml.safe_load(stream)
         except yaml.YAMLError as exc:
             print(exc)
         #get simulation environment
-    env = TrackEnvironment("./tracks/track_4387235659010134370.npy", render = render, vision = vision, width = 1.0)
+    #track_4387235659010134370_ver1
+    env = TrackEnvironment("./tracks/circle.npy", render = render, vision = vision, width = 1.0)
     if render:
         visualizer_pid = env.setup_comms()
     state_dims = [env.n_states]
@@ -41,6 +43,7 @@ def main():
             state = env.reset()
             terminal = False
             score = 0
+            avg_loss = 0
             #proceed until reaching an exit state
             while not terminal:
                 #predict new action
@@ -50,12 +53,12 @@ def main():
 
                 agent.remember(state, state_new, action, reward, terminal)
                 #adjust the weights according to the new transaction
-                agent.learn(i)
+                avg_loss += agent.learn(i)
                 #iterate to the next state
                 state = state_new
                 score += reward
             scores.append(score)
-            print("Iteration {:d} --> score {:.2f}. Running average {:.2f}".format( i, score, np.mean(scores)))
+            print("Iteration {:d} --> Score {:.2f}. Running average {:.2f}. Avg actor loss {:.2f}".format( i, score, np.mean(scores), avg_loss))
             if i > 0 and i % 20 == 0:
                 agent.save_models()
                 print("Models saved")
@@ -84,4 +87,4 @@ if __name__ == "__main__":
         os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
         os.environ["CUDA_VISIBLE_DEVICES"] = "0"
         print("starting in autonomous mode...\n\n")
-        main()
+        main("headless" in sys.argv)

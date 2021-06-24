@@ -7,7 +7,8 @@
 #include <glm/gtc/matrix_transform.hpp>
 using namespace std;
 
-#define TRACKFILENAME "trackdata_4387235659010134370.txt"
+//
+#define TRACKFILENAME "circle.txt"
 
 class TrackData{
 private:

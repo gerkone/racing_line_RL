@@ -25,8 +25,8 @@ class TrackEnvironment(object):
     [0] combined Throttle/Break
     [1] steering
     """
-    def __init__(self, trackpath, width = 1.5, dt = 0.03, maxMa=6, maxDelta=1, render = True, videogame = True, vision = True, fronteer_size = 10,
-                    n_beams = 10, rangefinder_cap = 1, curvature_step = 5, min_speed = 0.2, bored_after = 100, discrete = False, discretization_steps = 4):
+    def __init__(self, trackpath, width = 1.5, dt = 0.03, maxMa = 6, maxDelta=1, render = True, videogame = True, vision = True, fronteer_size = 10,
+                    n_beams = 25, rangefinder_cap = 5, curvature_step = 10, min_speed = 0.1, bored_after = 100, discrete = False, discretization_steps = 4):
         # vehicle model settings
         self.car = Vehicle(maxMa, maxDelta)
         self.dt = dt
@@ -63,8 +63,8 @@ class TrackEnvironment(object):
         self._n_beams = n_beams
         # rangefinder distance cap
         self._rangefinder_cap = rangefinder_cap
-        # get n_beams lines in the range
-        self._beam_space = np.linspace(-pi/6, pi/6, self._n_beams, endpoint = True)
+        # get n_beams lines in the range (160 degrees range)
+        self._beam_space = np.linspace(-80/180 * pi, 80/180 * pi, self._n_beams, endpoint = True)
 
         self.n_states = 2 + self._fronteer_size + self._n_beams + 1 + 2
 
@@ -172,8 +172,8 @@ class TrackEnvironment(object):
 
             return 2 * np.sin(theta) / dist13
         else:
-            # TODO: FloatingPointError, probably not solvable
-            return -1
+            # TODO: fix the impossible shape, brobaly not easily solvable
+            return 0.0
 
     def _curvature(self, start_idx):
         """
@@ -211,7 +211,7 @@ class TrackEnvironment(object):
             q_outer = list(line_l.intersection(self._outer_border).coords)[0]
             d_l = self._dist([q_outer[0], q_outer[1]], [car_x, car_y])
         except Exception:
-            # for some reason no points were found
+            # car is out of track
             d_l = -1
         try:
             if not line_r.is_valid:
@@ -219,11 +219,11 @@ class TrackEnvironment(object):
             q_inner = list(line_r.intersection(self._inner_border).coords)[0]
             d_r = self._dist([q_inner[0], q_inner[1]], [car_x, car_y])
         except Exception:
-            # for some reason no points were found
+            # car is out of track
             d_r = -1
         return d_l, d_r
 
-    def _rangefinders(self, car_x, car_y, car_angle, bounds = (-pi/6, pi/6)):
+    def _rangefinders(self, car_x, car_y, car_angle, bounds = (-pi/3, pi/3)):
         """
         returns n_beams distances in between the bounds, from the car to the track limits
         """
@@ -233,7 +233,7 @@ class TrackEnvironment(object):
         # must consider both inner and outer track limits, car may be turned
         ranges = []
         for b in beams:
-            if b.is_valid:
+            try:
                 inner_intersect = b.intersection(self._inner_border)
                 outer_intersect = b.intersection(self._outer_border)
                 intersects = list(inner_intersect.coords) + list(outer_intersect.coords)
@@ -244,9 +244,9 @@ class TrackEnvironment(object):
                 else:
                     # nothing in range - capping
                     ranges.append(self._rangefinder_cap)
-            else:
-                # TODO: fix
-                ranges.append(0)
+            except Exception:
+                # TODO: fix, may not be solvable
+                ranges.append(0.0)
         return ranges
 
     def _get_sensors(self, nearest_point_index):
@@ -267,7 +267,7 @@ class TrackEnvironment(object):
         if not outside_track:
             ranges = self._rangefinders(car_x, car_y, car_angle)
         else:
-            ranges = [-1] * self._n_beams
+            ranges = [0.0] * self._n_beams
 
         sensors.extend(ranges)
         # curvature fronteer, curvature of the next fronteer_size points
@@ -288,7 +288,7 @@ class TrackEnvironment(object):
         sensors.extend([vx, vy])
 
         sensors = [round(x, 6) for x in sensors]
-        return np.array(sensors)
+        return np.array(sensors), outside_track
 
 
     def _transition(self, action, nearest_point_index):
@@ -301,7 +301,7 @@ class TrackEnvironment(object):
         #step forward model by dt
         self.car.integrate(self.dt)
         #get new state sensor values
-        sensors = self._get_sensors(nearest_point_index)
+        sensors, outside_track = self._get_sensors(nearest_point_index)
         if self._render: image = self.render_and_vision()
         if self._vision:
             state_new = {}
@@ -311,18 +311,20 @@ class TrackEnvironment(object):
         else:
             state_new = {}
             state_new["sensors"] = sensors
-            return state_new
+            return state_new, outside_track
 
-    def _reward(self, speed_x, angle, terminal, nearest_point_index, steering):
-
-        d = self._dist(self._track[nearest_point_index])
-        reward = speed_x * np.cos(angle)
+    def _reward(self, terminal, nearest_point_index, steering):
+        # car_angle = self.car.getAngles()[0] % (2 * pi)
+        speed_x = self.car.getVelocities()[0]
+        # q2 = self._track[nearest_point_index]
+        # q1 = self._track[(nearest_point_index - 2) % len(self._track)]
+        # track_angle = self._angle2points(q1, q2)
+        # angle = car_angle - track_angle
+        #
+        # d = self._dist(self._track[nearest_point_index])
+        reward = 1
         if speed_x < self._min_speed:
             reward = -1
-        if d > self.width:
-            reward = -1
-        if terminal:
-            reward = -10
 
         return reward
 
@@ -360,12 +362,12 @@ class TrackEnvironment(object):
         elif (discrete_action == 9):
             return [1, 1]
 
-    def _is_terminal(self, nearest_point_index):
+    def _is_terminal(self, nearest_point_index, outside_track):
         """
         state is terminal if car has crashed
         (distance from track centre is greater than its width)
         """
-        if self._dist(self._track[nearest_point_index]) > self.width * 1.3:
+        if outside_track == True:
             # update next starting position
             self._start = nearest_point_index
             return True
@@ -383,10 +385,10 @@ class TrackEnvironment(object):
         # take a couple of points before to avoid superposition
         q1 = self._track[(nearest_point_index - 2) % len(self._track)]
         track_angle = self._angle2points(q1, q2)
-        state_new = self._transition(action, nearest_point_index)
-        terminal = self._is_terminal(nearest_point_index)
+        state_new, outside_track = self._transition(action, nearest_point_index)
+        terminal = self._is_terminal(nearest_point_index, outside_track)
         sensors = state_new["sensors"]
-        reward = self._reward(sensors[23], sensors[22], terminal, nearest_point_index, action[0])
+        reward = self._reward(terminal, nearest_point_index, action[0])
         return state_new, reward, terminal
 
     def reset(self):
@@ -397,11 +399,11 @@ class TrackEnvironment(object):
 
         q2 = self._track[self._start]
         # take a couple of points before to avoid superposition
-        q1 = self._track[(self._start - 2) % len(self._track)]
+        q1 = self._track[(self._start + 5) % len(self._track)]
         track_angle = self._angle2points(q1, q2)
         self.car.reset(q2[0], q2[1], track_angle)
         # closest point is starting position
-        sensors = self._get_sensors(self._start)
+        sensors, outside_track = self._get_sensors(self._start)
         if self._render: image = self.render_and_vision()
         if self._vision:
             state_new = {}
