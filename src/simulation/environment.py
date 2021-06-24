@@ -25,7 +25,7 @@ class TrackEnvironment(object):
     [0] combined Throttle/Break
     [1] steering
     """
-    def __init__(self, trackpath, width = 1.5, dt = 0.03, maxMa = 6, maxDelta=1, render = True, videogame = True, vision = True, fronteer_size = 10,
+    def __init__(self, trackpath, width = 1.5, dt = 0.03, maxMa = 6, maxDelta=1, render = True, videogame = True, vision = True, fronteer_size = 0,
                     n_beams = 25, rangefinder_cap = 5, curvature_step = 10, min_speed = 0.1, bored_after = 100, discrete = False, discretization_steps = 4):
         # vehicle model settings
         self.car = Vehicle(maxMa, maxDelta)
@@ -273,9 +273,10 @@ class TrackEnvironment(object):
         # curvature fronteer, curvature of the next fronteer_size points
         # between each point curvature_step * 2 to cover more track
 
-        curvature_fronteer = [self._curvature((nearest_point_index + (i * self._curvature_step * 2)) % len(self._track))
-                                for i in range(self._fronteer_size)]
-        sensors.extend(curvature_fronteer)
+        if self._fronteer_size > 0:
+            curvature_fronteer = [self._curvature((nearest_point_index + (i * self._curvature_step * 2)) % len(self._track))
+                                    for i in range(self._fronteer_size)]
+            sensors.extend(curvature_fronteer)
         # track-relative angle
         q2 = self._track[nearest_point_index]
         # take a couple of points before to avoid superposition
