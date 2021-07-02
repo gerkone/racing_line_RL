@@ -8,7 +8,7 @@
 using namespace std;
 
 //trackdata_4387235659010134370
-#define TRACKFILENAME "trackdata_4387235659010134370.txt"
+#define TRACKFILENAME "oval.txt"
 
 class TrackData{
 private:

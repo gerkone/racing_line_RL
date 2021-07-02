@@ -714,30 +714,22 @@ void window_size_callback(GLFWwindow* window, int newWidth, int newHeight){
   pMat = glm::perspective(1.0472f, aspect, 0.1f, 1000.0f); //1.0472 radians = 60 degrees
 }
 
+vector<string> deserialize_zmq(string msg) {
+  size_t pos = 0;
+  vector<string> values;
+  string token;
+
+  while ((pos = msg.find("/")) != string::npos) {
+    token = msg.substr(0, pos);
+    values.push_back(token);
+    msg.erase(0, pos + 1);
+  }
+
+  values.push_back(msg);
+  return values;
+}
+
 int main(void){
-    if (!glfwInit()) {exit(EXIT_FAILURE);}
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-    //Cambiare qui per modificare grandezza finestra
-    GLFWwindow* window = glfwCreateWindow(500, 500, "Racing Line RL", NULL, NULL);
-    glfwMakeContextCurrent(window);
-    if (glewInit() != GLEW_OK){exit(EXIT_FAILURE);}
-    glfwSwapInterval(1);
-
-    TrackData TD(TRACKFILENAME, 1);
-    vertices = TD.getVerticesArray();
-    NumOfVerticesTrack = TD.getNumOfVertices();
-    xcorrection = (vertices[0] + vertices[3])/2;
-    ycorrection = (vertices[1] + vertices[4])/2;
-
-
-    init(window);
-    glfwSetKeyCallback(window, key_callback);
-    glfwSetCursorPosCallback(window, cursor_position_callback);
-    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-    mouseblocked=true;
-    glfwSetWindowSizeCallback(window, window_size_callback);
-
     // initialize the zmq context with a single IO thread
     zmq::context_t context{1};
     // construct a REQ (request) socket and connect to interface
@@ -750,16 +742,44 @@ int main(void){
     // visualizer ready
     socket.send(zmq::buffer(ack), zmq::send_flags::none);
 
+    // recieve visualizer settings vision and track name)
+    // settings[0] = track
+    // settings[1] = vision
     socket.recv(reply, zmq::recv_flags::none);
-    string vision_setting = reply.to_string();
+
+    vector<string> settings = deserialize_zmq(reply.to_string());
+    string trackname = settings.at(0).append(".txt");
+
+    TrackData TD(trackname, 1);
+    vertices = TD.getVerticesArray();
+    NumOfVerticesTrack = TD.getNumOfVertices();
+    xcorrection = (vertices[0] + vertices[3])/2;
+    ycorrection = (vertices[1] + vertices[4])/2;
 
     bool vision = true;
 
-    if(vision_setting.compare("False") == 0) {
+    if(settings.at(1).compare("False") == 0) {
       vision = false;
     }
 
+    // settings complete - handshake complete
     socket.send(zmq::buffer(ack), zmq::send_flags::none);
+
+    if (!glfwInit()) {exit(EXIT_FAILURE);}
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    //Cambiare qui per modificare grandezza finestra
+    GLFWwindow* window = glfwCreateWindow(500, 500, "Racing Line RL", NULL, NULL);
+    glfwMakeContextCurrent(window);
+    if (glewInit() != GLEW_OK){exit(EXIT_FAILURE);}
+    glfwSwapInterval(1);
+
+    init(window);
+    glfwSetKeyCallback(window, key_callback);
+    glfwSetCursorPosCallback(window, cursor_position_callback);
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    mouseblocked=true;
+    glfwSetWindowSizeCallback(window, window_size_callback);
 
     while (!glfwWindowShouldClose(window)) {
         if (cameraAttacedToCar){
@@ -771,25 +791,16 @@ int main(void){
         glfwPollEvents();
         //SIMULAZIONE
         socket.recv(reply, zmq::recv_flags::none);
-        string data = reply.to_string();
 
         // deserialize data string
         // formatted as {x}/{y}/{car_angle}/{front_tyres_angle}
-        size_t pos = 0;
-        vector<double> values;
-        string token;
-        while ((pos = data.find("/")) != string::npos) {
-          token = data.substr(0, pos);
-          values.push_back(stod(token));
-          data.erase(0, pos + 1);
-        }
-        values.push_back(stod(data));
+        vector<string> values = deserialize_zmq(reply.to_string());
 
         // update environment variables
-        carLocX = values.at(0)-xcorrection;
-        carLocY = values.at(1)-ycorrection;
-        carphi = M_PI/2 - values.at(2);
-        sterzo = -values.at(3);
+        carLocX = stod(values.at(0))-xcorrection;
+        carLocY = stod(values.at(1))-ycorrection;
+        carphi = M_PI/2 - stod(values.at(2));
+        sterzo = -stod(values.at(3));
         // cout << carLocX << ", " << carLocY << ", " << carphi << ", " << sterzo << endl;
 
         // send confirmation

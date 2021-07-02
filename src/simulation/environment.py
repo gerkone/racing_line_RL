@@ -53,6 +53,7 @@ class TrackEnvironment(object):
         # track settings
         # track width
         self.width = width
+        self.trackname = trackpath.split("/")[-1].split(".")[0]
         # load track array
         self._track = np.load(trackpath)
 
@@ -94,12 +95,12 @@ class TrackEnvironment(object):
         if self._render:
             # input from the rendering program mode
             import zmq
-            from subprocess import Popen
+            from subprocess import Popen, PIPE
 
             # run the visualizer
             os.chdir("src/visualizer/")
             visualizer_proc = Popen(["./racing_line_rl"], shell=True,
-                    stdin=None, stdout=None, stderr=None, close_fds=True)
+                    stdin = None, stdout = None, stderr = None, close_fds = True)
             context = zmq.Context()
             self._socket = context.socket(zmq.REP)
             self._socket.bind("tcp://*:55555")
@@ -108,7 +109,7 @@ class TrackEnvironment(object):
             self._socket.recv()
 
             # enable/disable vision
-            data = "{}".format(self._vision)
+            data = "{}/{}".format(self.trackname, self._vision)
             self._socket.send_string(data)
 
             self._socket.recv()
@@ -150,6 +151,11 @@ class TrackEnvironment(object):
                 angle = np.pi + angle
 
         return angle % (2 * np.pi)
+
+
+    def _perpendicular(self, p1, p2):
+        angle = np.arctan2(p2[1] - p1[1], p2[0] - p1[0])
+        return angle + np.pi
 
     def _corner(self, p1, p2, p3, atol):
         angle_a = np.arctan2(p2[1] - p1[1], p2[0] - p1[0])
@@ -390,7 +396,7 @@ class TrackEnvironment(object):
         if self._outside_for > 3:
             self._outside_for = 0
             # update next starting position
-            self._start = nearest_point_index
+            self._start = (nearest_point_index) % min(len(self._outer_border.coords), len(self._inner_border.coords))
             return True
         return self._bored()
 
@@ -417,12 +423,10 @@ class TrackEnvironment(object):
         set the car on the starting line
         """
         self._steps = 0
+        q = self._track[self._start]
 
-        q2 = self._track[self._start]
-        # take a couple of points before to avoid superposition
-        q1 = self._track[(self._start - 5) % len(self._track)]
-        track_angle = self._angle2points(q1, q2)
-        self.car.reset(q2[0], q2[1], track_angle)
+        angle = self._perpendicular(self._outer_border.coords[self._start], self._inner_border.coords[self._start])
+        self.car.reset(q[0], q[1], angle)
         # closest point is starting position
         sensors, outside_track = self._get_sensors(self._start)
         if self._render: image = self.render_and_vision()

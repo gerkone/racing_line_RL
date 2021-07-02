@@ -4,7 +4,7 @@ import cv2
 import yaml
 import collections
 import matplotlib.pyplot as plt
-
+import argparse
 
 from src.simulation.environment import TrackEnvironment, manual
 from src.agent.ddpg import Agent
@@ -13,7 +13,7 @@ N_EPISODES = 1000000
 CHECKPOINT = 100
 
 
-def main(headless):
+def main(headless, trackpath = "./tracks/track_4387235659010134370_ver1.npy"):
     hyperparams = {}
     vision = False
     render = not headless or vision
@@ -24,7 +24,7 @@ def main(headless):
             print(exc)
         #get simulation environment
     #track_4387235659010134370_ver1
-    env = TrackEnvironment("./tracks/track_4387235659010134370_ver1.npy", render = render, vision = vision, width = 1.0)
+    env = TrackEnvironment(trackpath, render = render, vision = vision, width = 1.0)
     if render:
         visualizer_pid = env.setup_comms()
     state_dims = [env.n_states]
@@ -74,17 +74,18 @@ def main(headless):
             Popen(["kill", "-9", str(visualizer_pid)])
 
 if __name__ == "__main__":
-    if("manual" in sys.argv):
+    parser = argparse.ArgumentParser(description="racing line RL.")
+    parser.add_argument("--trackpath", help="Path to the track file.", default="./tracks/track_4387235659010134370_ver1.npy", type=str)
+    parser.add_argument("--manual", help="Set manual mode.", default = False, action="store_true")
+    parser.add_argument("--headless", help="Run without rendering.", default=False, action="store_true")
+    args = parser.parse_args()
+    if(args.manual == True):
         while True:
-            print("starting in manual mode...\n\n")
+            print("Starting in manual mode...\n\n")
             manual("../tracks/track_4387235659010134370.npy")
-    elif("keyboard" in sys.argv):
-        while True:
-            print("starting in manual mode...\n\n")
-            manual("../tracks/track_4387235659010134370.npy", joystick = False)
     else:
         #tell tensorflow to train with GPU 0
         os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
         os.environ["CUDA_VISIBLE_DEVICES"] = "0"
-        print("starting in autonomous mode...\n\n")
-        main("headless" in sys.argv)
+        print("Starting in autonomous mode...\n\n")
+        main(args.headless, args.trackpath)
