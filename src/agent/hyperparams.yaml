@@ -1,6 +1,6 @@
 actor_lr : 0.00001
-critic_lr : 0.0001
-batch_size : 64
+critic_lr : 0.00001
+batch_size : 128
 gamma : 0.99
 buf_size : 1000000
 tau : 0.001

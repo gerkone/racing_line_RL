@@ -4,6 +4,8 @@ from datetime import datetime
 import numpy as np
 import tensorflow as tf
 
+from simple_pid import PID
+
 from src.agent.utils.replay_buffer import ReplayBuffer
 from src.agent.utils.action_noise import OUActionNoise
 from src.agent.network.actor import Actor
@@ -53,6 +55,10 @@ class Agent(object):
         # path_actor = "./models/actor/actor" + date + ".h5"
         # path_critic = "./models/critic/actor" + date + ".h5"
 
+        self.pid = PID(Kp = 2, Ki = 0, Kd = 0.8, setpoint = 0, output_limits = (-1, 1), sample_time = 0.005)
+        self.pid_t = PID(Kp = 0.7, Ki = 0, Kd = 0.05, setpoint = 7, output_limits = (-1, 1), sample_time = 0.005)
+
+
         # actor class
         self.actor = Actor(state_dims = state_dims, action_dims = action_dims,
                             lr = actor_lr, batch_size = batch_size, tau = tau,
@@ -69,15 +75,21 @@ class Agent(object):
         Return the best action in the passed state, according to the model
         in training. Noise added for exploration
         """
-        state = np.hstack(list(state.values()))
-        state = tf.expand_dims(state, axis = 0)
-        action = self.actor.model.predict(state)[0]
+        if episode < 3:
+            state = state["sensors"]
+            steer = -self.pid(np.abs(state[0] - state[1]))
+            throttle = self.pid_t(state[-2])
+            action_p = [throttle, steer]
+        else:
+            state = np.hstack(list(state.values()))
+            state = tf.expand_dims(state, axis = 0)
+            action = self.actor.model.predict(state)[0]
 
-        noise = self._noise()
-        action_p = action + noise
-        #clip the resulting action with the bounds
-        action_p = np.clip(action_p, self.lower_bound, self.upper_bound)
-        return action_p
+            noise = self._noise()
+            action_p = action + noise
+            #clip the resulting action with the bounds
+        action__clip = np.clip(action_p, self.lower_bound, self.upper_bound)
+        return action__clip
 
     def learn(self, i):
         """

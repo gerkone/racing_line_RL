@@ -24,7 +24,7 @@ def main(headless):
             print(exc)
         #get simulation environment
     #track_4387235659010134370_ver1
-    env = TrackEnvironment("./tracks/circle.npy", render = render, vision = vision, width = 1.0)
+    env = TrackEnvironment("./tracks/track_4387235659010134370_ver1.npy", render = render, vision = vision, width = 1.0)
     if render:
         visualizer_pid = env.setup_comms()
     state_dims = [env.n_states]

@@ -57,14 +57,9 @@ class Actor(object):
         fcl2 = Dense(self.fcl2_size, activation = "relu")(fcl1)
         fcl2 = BatchNormalization()(fcl2)
         fcl2 = Activation("relu")(fcl2)
-        # -- third fully connected layer --
-        fcl3 = Dense(self.fcl1_size, activation = "relu")(fcl2)
-        fcl3 = BatchNormalization()(fcl3)
-        fcl3 = Activation("relu")(fcl3)
+
         # -- output layer --
-        f3 = 0.003
-        output_layer = Dense(*self.action_dims, activation="tanh", kernel_initializer = RandomUniform(-f3, f3),
-                        bias_initializer = RandomUniform(-f3, f3), kernel_regularizer=tf.keras.regularizers.l2(0.01))(fcl3)
+        output_layer = Dense(*self.action_dims, activation="tanh")(fcl2)
         model = Model(input_layer, output_layer)
         return model
 

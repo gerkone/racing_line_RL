@@ -1,4 +1,3 @@
-from math import cos, sin, tan, sqrt, floor, pi, asin
 import numpy as np
 import collections as col
 import time
@@ -13,7 +12,7 @@ from src.simulation.model import Vehicle
 
 class TrackEnvironment(object):
     """
-    State array of 6 elements
+    State array of 6 sensors
     state[0] left distance from track side
     state[1] right distance from track side
     state[2:12] rangefinders
@@ -25,8 +24,8 @@ class TrackEnvironment(object):
     [0] combined Throttle/Break
     [1] steering
     """
-    def __init__(self, trackpath, width = 1.5, dt = 0.03, maxMa = 6, maxDelta=1, render = True, videogame = True, vision = True, fronteer_size = 0,
-                    n_beams = 25, rangefinder_cap = 5, curvature_step = 10, min_speed = 0.1, bored_after = 100, discrete = False, discretization_steps = 4):
+    def __init__(self, trackpath, width = 1.5, dt = 0.01, maxMa = 6, maxDelta=1, render = True, videogame = True, vision = True, fronteer_size = 10,
+                    n_beams = 3, rangefinder_cap = 5, curvature_step = 10, min_speed = 0.1, bored_after = 100, discrete = False, discretization_steps = 4):
         # vehicle model settings
         self.car = Vehicle(maxMa, maxDelta)
         self.dt = dt
@@ -64,7 +63,7 @@ class TrackEnvironment(object):
         # rangefinder distance cap
         self._rangefinder_cap = rangefinder_cap
         # get n_beams lines in the range (160 degrees range)
-        self._beam_space = np.linspace(-80/180 * pi, 80/180 * pi, self._n_beams, endpoint = True)
+        self._beam_space = np.linspace(-45/180 * np.pi, 45/180 * np.pi, self._n_beams, endpoint = True)
 
         self.n_states = 2 + self._fronteer_size + self._n_beams + 1 + 2
 
@@ -83,6 +82,8 @@ class TrackEnvironment(object):
         self._min_speed = min_speed
         self._bored_after = bored_after
         self._start = 0
+
+        self._outside_for = 0
 
         self._steps = 0
 
@@ -127,10 +128,10 @@ class TrackEnvironment(object):
         """
         if(q_end is None):
             q_end = self.car.getPosition()
-        return sqrt(pow(q_end[0] - q_start[0], 2) + pow(q_end[1] - q_start[1], 2))
+        return np.sqrt(np.power(q_end[0] - q_start[0], 2) + np.power(q_end[1] - q_start[1], 2))
 
     def _angle2points(self, q1, q2):
-        angle = abs(asin((q2[1] - q1[1]) / self._dist(q1, q2)))
+        angle = abs(np.arcsin((q2[1] - q1[1]) / self._dist(q1, q2)))
         if(q2[0] >= q1[0]):
             # right
             if(q2[1] >= q1[1]):
@@ -138,19 +139,32 @@ class TrackEnvironment(object):
                 angle = angle
             elif(q2[1] < q1[1]):
                 # fourth quandrant
-                angle = 2 * pi - angle
+                angle = 2 * np.pi - angle
         elif(q2[0] < q1[0]):
             # left
             if(q2[1] >= q1[1]):
                 # second quadrant
-                angle = pi - angle
+                angle = np.pi - angle
             elif(q2[1] < q1[1]):
                 # third quandrant
-                angle = pi + angle
+                angle = np.pi + angle
 
-        return angle % (2 * pi)
+        return angle % (2 * np.pi)
 
-    def _menger_curvature(self, p1, p2, p3, atol=1e-3):
+    def _corner(self, p1, p2, p3, atol):
+        angle_a = np.arctan2(p2[1] - p1[1], p2[0] - p1[0])
+        angle_b = np.arctan2(p3[1] - p1[1], p3[0] - p1[0])
+        if np.isclose(angle_a - angle_b, 0.0, atol=atol):
+            # straight
+            return 0.0
+        elif angle_a > angle_b:
+            # left
+            return 1.0
+        else:
+            # right
+            return -1.0
+
+    def _menger_curvature(self, p1, p2, p3, atol=1e-6):
         """
         Inverse of the radius of the circle passing through p1,p2,p3
         """
@@ -168,11 +182,14 @@ class TrackEnvironment(object):
             if np.isclose(theta - np.pi, 0.0, atol=atol):
                 theta = 0.0
 
-            dist13 = np.linalg.norm(vec21-vec23)
+            dist13 = np.linalg.norm(vec21 - vec23)
 
-            return 2 * np.sin(theta) / dist13
+            # left/right corner, positive/negative curvature to distinguish
+            sign = self._corner(p1, p2, p3, atol)
+
+            return sign * 2 * np.sin(theta) / dist13
         else:
-            # TODO: fix the impossible shape, brobaly not easily solvable
+            # TODO: fix the impossible shape, probaly not easily solvable
             return 0.0
 
     def _curvature(self, start_idx):
@@ -190,8 +207,8 @@ class TrackEnvironment(object):
         returns a shapely line from start, angle and lenght
         """
         start = Point(x, y)
-        end_x = x + length * cos(angle)
-        end_y = y + length * sin(angle)
+        end_x = x + length * np.cos(angle)
+        end_y = y + length * np.sin(angle)
         end = Point(end_x, end_y)
 
         return LineString([start, end])
@@ -200,9 +217,9 @@ class TrackEnvironment(object):
         # car always runnig clockwise
         # lines perpendicular to car
         # pi/2 to the left
-        line_l = self._line_angle(car_x, car_y, car_angle - pi / 2, self.width * 2)
+        line_l = self._line_angle(car_x, car_y, car_angle - np.pi / 2, self.width * 2)
         # pi/2 to the right
-        line_r = self._line_angle(car_x, car_y, car_angle + pi / 2, self.width * 2)
+        line_r = self._line_angle(car_x, car_y, car_angle + np.pi / 2, self.width * 2)
 
         # should only be one interesction point
         try:
@@ -223,7 +240,7 @@ class TrackEnvironment(object):
             d_r = -1
         return d_l, d_r
 
-    def _rangefinders(self, car_x, car_y, car_angle, bounds = (-pi/3, pi/3)):
+    def _rangefinders(self, car_x, car_y, car_angle, bounds = (-np.pi/3, np.pi/3)):
         """
         returns n_beams distances in between the bounds, from the car to the track limits
         """
@@ -256,7 +273,7 @@ class TrackEnvironment(object):
         """
         sensors = []
         car_x, car_y = (self.car.getPosition()[0], self.car.getPosition()[1])
-        car_angle = self.car.getAngles()[0] % (2 * pi)
+        car_angle = self.car.getAngles()[0] % (2 * np.pi)
 
         # left, right distance
         d_l, d_r = self._horizontal_distances(car_x, car_y, car_angle)
@@ -288,7 +305,7 @@ class TrackEnvironment(object):
         vx, vy = self.car.getVelocities()
         sensors.extend([vx, vy])
 
-        sensors = [round(x, 6) for x in sensors]
+        sensors = [round(x, 5) for x in sensors]
         return np.array(sensors), outside_track
 
 
@@ -334,7 +351,7 @@ class TrackEnvironment(object):
         terminate if car was still too long
         """
         if self._steps > self._bored_after:
-            if sqrt(pow(self.car.getVelocities()[0], 2) + pow(self.car.getVelocities()[1], 2)) < self._min_speed:
+            if np.sqrt(np.power(self.car.getVelocities()[0], 2) + np.power(self.car.getVelocities()[1], 2)) < self._min_speed:
                 return True
         return False
 
@@ -369,6 +386,9 @@ class TrackEnvironment(object):
         (distance from track centre is greater than its width)
         """
         if outside_track == True:
+            self._outside_for += 1
+        if self._outside_for > 3:
+            self._outside_for = 0
             # update next starting position
             self._start = nearest_point_index
             return True
@@ -400,7 +420,7 @@ class TrackEnvironment(object):
 
         q2 = self._track[self._start]
         # take a couple of points before to avoid superposition
-        q1 = self._track[(self._start + 5) % len(self._track)]
+        q1 = self._track[(self._start - 5) % len(self._track)]
         track_angle = self._angle2points(q1, q2)
         self.car.reset(q2[0], q2[1], track_angle)
         # closest point is starting position
