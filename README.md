@@ -22,32 +22,6 @@ Or the manual mode with
 python test.py manual
 ```
 
-
-## Model
-The model interface is similar to OpenAI gym:
-
-### State space
-The state space is an abstraction of the set of measurements from an array of sensors. Useful "sensor" are:
-| Name  | Range | Description |
-| --- | --- | --- |
-| angle | [-π,+π] | Angle between the car axis and the track axis |
-| distance | [-width, +width] | Distance of the car and the middle of the track (width is the track width) |
-| position | [] | Distance from the car and multiple points of the track |
-| speed | [-max_speed, max_speed] | Three dimensional vector for speed |
-| inclination | [-max_incl,+max_incl] | Vertical inclination of the vehicle |
-
-### Action space
-| Name  | Range | Description |
-| --- | --- | --- |
-| steering | [-1,+1] | Steering percentage |
-| brake | [-1,0] | Breaking percentage |
-| accelerator | [0,+1] | Accelerator percentage |
-
-The brake and accelerator actions can be combined to reduce action space, and avoid breaking while accelerating.
-
-### Reward
-TODO
-
 ### Methods
 #### **step(action) : tuple[3]**
 
@@ -61,10 +35,7 @@ TODO
 
   Visualizes the current state of the environment.
 
-### Fields
-TODO
-
-## IA Agent
+## Agent
 ### DDPG
 The decision making is performed by a (deep) reinforcement learning agent. Considering the continuous nature of the environment and the possibility to train for an undefinedly long time we choose to use a modified version of Deep Deterministic Policy Gradient or DDPG.
 
@@ -87,9 +58,3 @@ The changes made are based on the Twin Delayed DDPG or TD3 algorithm:
 - Uniform noise is introduced to the target action. This is done to prevent overfitting in the policy model.
 
 The TD3 algorith was originaly described [this paper](https://arxiv.org/pdf/1802.09477.pdf).
-
-### Network structures
-<!-- #### Critic:
-![Critic](/img/networks/critic.png) -->
-#### Actor:
-![Actor](/img/networks/actor.png)
